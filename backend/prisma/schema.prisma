@@ -1,0 +1,253 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/**
+ * =====================================================
+ * ROLES & USERS
+ * =====================================================
+ */
+
+enum RoleName {
+  admin
+  faculty
+  student
+  hod
+}
+
+model Role {
+  id    Int      @id @default(autoincrement())
+  name  RoleName @unique
+  users User[]
+}
+
+model Department {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+
+  users    User[]
+  courses  Course[]
+  subjects Subject[]
+  faculty  Faculty[]
+  rooms    Room[]
+}
+
+model User {
+  id           Int    @id @default(autoincrement())
+  name         String
+  email        String @unique
+  password     String
+  roleId       Int
+  departmentId Int?
+
+  role       Role        @relation(fields: [roleId], references: [id])
+  department Department? @relation(fields: [departmentId], references: [id])
+
+  faculty Faculty?
+  student Student?
+}
+
+/**
+ * =====================================================
+ * ACADEMIC STRUCTURE
+ * =====================================================
+ */
+
+model AcademicSession {
+  id       Int     @id @default(autoincrement())
+  name     String  @unique 
+  isActive Boolean @default(true)
+
+  sections  Section[]
+  timetable Timetable[]
+}
+
+model Course {
+  id            Int    @id @default(autoincrement())
+  name          String // BCA, BTech CSE
+  durationYears Int
+  departmentId  Int
+
+  department      Department       @relation(fields: [departmentId], references: [id])
+  sections        Section[]
+  subjects        CourseSubject[]
+  facultySubjects FacultySubject[]
+}
+
+model Section {
+  id        Int    @id @default(autoincrement())
+  name      String // A, B, C
+  semester  Int
+  batchYear Int
+
+  courseId  Int
+  sessionId Int
+
+  course  Course          @relation(fields: [courseId], references: [id])
+  session AcademicSession @relation(fields: [sessionId], references: [id])
+
+  students  Student[]
+  timetable Timetable[]
+  groups    StudentGroup[]//Sub-groups for Labs
+
+  @@unique([courseId, semester, name, sessionId])
+}
+model StudentGroup {
+  id        Int @id @default(autoincrement())
+  name      String 
+  sectionId Int
+  section   Section @relation(fields: [sectionId], references: [id])
+  timetable Timetable[]
+}
+
+/**
+ * =====================================================
+ * STUDENTS & FACULTY
+ * =====================================================
+ */
+
+model Faculty {
+  id                 Int @id @default(autoincrement())
+  userId             Int @unique
+  departmentId       Int
+  maxLecturesPerWeek Int @default(20)
+
+  user       User       @relation(fields: [userId], references: [id])
+  department Department @relation(fields: [departmentId], references: [id])
+
+  subjects  FacultySubject[]
+  timetable Timetable[]
+}
+
+model Student {
+  id         Int    @id @default(autoincrement())
+  userId     Int    @unique
+  sectionId  Int
+  rollNumber String @unique
+
+  user    User    @relation(fields: [userId], references: [id])
+  section Section @relation(fields: [sectionId], references: [id])
+}
+
+/**
+ * =====================================================
+ * SUBJECTS & ASSIGNMENTS
+ * =====================================================
+ */
+
+model Subject {
+  id           Int     @id @default(autoincrement())
+  name         String
+  isLab        Boolean @default(false)
+  departmentId Int
+
+  department Department @relation(fields: [departmentId], references: [id])
+
+  courses   CourseSubject[]
+  faculty   FacultySubject[]
+  timetable Timetable[]
+}
+
+model CourseSubject {
+  id              Int     @id @default(autoincrement())
+  courseId        Int
+  subjectId       Int
+  semester        Int
+  lecturesPerWeek Int
+  isLab           Boolean @default(false)
+
+  course  Course  @relation(fields: [courseId], references: [id])
+  subject Subject @relation(fields: [subjectId], references: [id])
+
+  @@unique([courseId, subjectId, semester])
+}
+
+model FacultySubject {
+  id        Int @id @default(autoincrement())
+  facultyId Int
+  subjectId Int
+  courseId  Int
+
+  faculty Faculty @relation(fields: [facultyId], references: [id])
+  subject Subject @relation(fields: [subjectId], references: [id])
+  course  Course  @relation(fields: [courseId], references: [id])
+
+  @@unique([facultyId, subjectId, courseId])
+}
+
+/**
+ * =====================================================
+ * ROOMS & TIME STRUCTURE
+ * =====================================================
+ */
+
+model Room {
+  id           Int    @id @default(autoincrement())
+  name         String
+  roomType     String // classroom / lab
+  capacity     Int
+  departmentId Int
+
+  department Department  @relation(fields: [departmentId], references: [id])
+  timetable  Timetable[]
+}
+
+enum DayEnum {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+model Day {
+  id   Int     @id @default(autoincrement())
+  name DayEnum @unique
+
+  timetable Timetable[]
+}
+
+model TimeSlot {
+  id         Int      @id @default(autoincrement())
+  startTime  String 
+  endTime    String
+  slotNumber Int
+
+  timetable Timetable[]
+}
+
+/**
+ * =====================================================
+ * TIMETABLE (CONFLICT SAFE)
+ * =====================================================
+ */
+
+model Timetable {
+  id         Int @id @default(autoincrement())
+  sessionId  Int
+  sectionId  Int?
+  groupId    Int?
+  subjectId  Int
+  facultyId  Int
+  roomId     Int
+  dayId      Int
+  timeSlotId Int
+
+  session  AcademicSession @relation(fields: [sessionId], references: [id])
+  section  Section?         @relation(fields: [sectionId], references: [id])
+  group      StudentGroup? @relation(fields: [groupId], references: [id])
+  subject  Subject         @relation(fields: [subjectId], references: [id])
+  faculty  Faculty         @relation(fields: [facultyId], references: [id])
+  room     Room            @relation(fields: [roomId], references: [id])
+  day      Day             @relation(fields: [dayId], references: [id])
+  timeSlot TimeSlot        @relation(fields: [timeSlotId], references: [id])
+
+  // 🚫 CONFLICT PREVENTION
+  @@index([dayId, timeSlotId])
+}
