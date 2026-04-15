@@ -26,6 +26,10 @@ export class RoomsController {
   findAll() {
     return this.roomsService.findAll();
   }
+  @Get('/department/:departmentId')
+  findByDepartment(@Param('departmentId') departmentId: string) {
+    return this.roomsService.findByDepartment(+departmentId);
+  }
 
   // 📄 Get Single Room
   @Get(':id')

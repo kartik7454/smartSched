@@ -26,9 +26,11 @@ export class CourseSubjectService {
     });
   }
 
-  findOne(id: number) {
+  async findOne(id: number) {
     return this.prisma.courseSubject.findUnique({
-      where: { id },
+      where: { 
+        id: id, // Make sure id is a number; Prisma expects { id: number }
+      },
       include: {
         course: true,
         subject: true,
@@ -46,6 +48,31 @@ export class CourseSubjectService {
   remove(id: number) {
     return this.prisma.courseSubject.delete({
       where: { id },
+    });
+  }
+
+  // Get all subjects by courseId, eager loading subject
+  async findSubjectsByCourseId(courseId: number) {
+    return this.prisma.courseSubject.findMany({
+      where: {
+        courseId: courseId,
+      },
+      include: {
+        subject: true,
+      },
+    });
+  }
+
+  // Get all subjects by courseId and semester, eager loading subject
+  async findSubjectsByCourseAndSemester(courseId: number, semester: number) {
+    return this.prisma.courseSubject.findMany({
+      where: {
+        courseId: courseId,
+        semester: semester,
+      },
+      include: {
+        subject: true,
+      },
     });
   }
 }

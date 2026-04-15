@@ -25,6 +25,15 @@ export class FacultySubjectController {
     return this.service.findAll();
   }
 
+
+  @Post('unique-faculties-by-subjects')
+  async getUniqueFacultiesBySubjectIds(@Body('subjectIds') subjectIds: number[]) {
+    // Expects body: { subjectIds: number[] }
+    // Returns unique faculties for the given array of subject IDs
+    return this.service.getUniqueFacultiesBySubjectIds(subjectIds);
+  }
+
+  
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.service.findOne(+id);

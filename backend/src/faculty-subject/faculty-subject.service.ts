@@ -51,4 +51,52 @@ export class FacultySubjectService {
       where: { id },
     });
   }
+
+  /**
+   * Returns unique faculties teaching any of the given subjectIds.
+   * Each faculty is included only once even if teaching multiple of the provided subjects.
+   * @param subjectIds Array of subject IDs.
+   */
+  async getUniqueFacultiesBySubjectIds(subjectIds: number[]) {
+    if (!Array.isArray(subjectIds) || subjectIds.length === 0) return [];
+
+    type FacultyWithUser = {
+      id: number;
+      userId: number;
+      departmentId: number;
+      maxLecturesPerWeek: number;
+      user: {
+        id: number;
+        name: string;
+        departmentId: number | null;
+        email: string;
+        password: string;
+        roleId: number;
+      };
+    };
+
+    const all = await this.prisma.facultySubject.findMany({
+      where: {
+        subjectId: { in: subjectIds },
+      },
+      include: {
+        faculty: {
+          include: { user: true },
+        },
+      },
+    });
+
+    const seen = new Set<number>();
+    const uniqueFaculties: FacultyWithUser[] = [];
+    for (const fs of all) {
+      const faculty = fs.faculty as FacultyWithUser | null;
+      if (!faculty) continue;
+      if (!seen.has(faculty.id)) {
+        uniqueFaculties.push(faculty);
+        seen.add(faculty.id);
+      }
+    }
+
+    return uniqueFaculties;
+  }
 }

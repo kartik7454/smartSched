@@ -6,6 +6,15 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
+
+// Simple section type for list
+type SectionInfo = {
+  id: number;
+  name: string;
+  semester?: number;
+  course?: { id: number; name: string };
+};
+
 type TimetableEntry = {
   id: number;
   sectionId: number | null;
@@ -77,13 +86,9 @@ function buildGrid(entries: TimetableEntry[]) {
 
   for (const e of entries) {
     if (!byDay.has(e.dayId)) byDay.set(e.dayId, new Map());
-
     const bySlot = byDay.get(e.dayId)!;
-
     if (!bySlot.has(e.timeSlotId)) bySlot.set(e.timeSlotId, []);
-
     bySlot.get(e.timeSlotId)!.push(e);
-
     slotSet.add(e.timeSlotId);
   }
 
@@ -129,53 +134,173 @@ function getCellsForDay(dayId: number, slotIds: number[], byDay: any) {
   return result;
 }
 
+function sectionLabelFromSectionInfo(section: SectionInfo) {
+  // Try to make a user-friendly label for a section
+  return `${section.course?.name ?? "Course"} ·${section.semester ? " Sem " + section.semester : ""} ${section.name}`;
+}
 function sectionLabel(entry: TimetableEntry) {
   const s = entry.section;
   if (!s) return "Unknown";
   return `${s.course?.name ?? "Course"} · Sem ${s.semester} ${s.name}`;
 }
 
+// Function to remove many timetables by sectionId (kept for per-section delete)
+async function removeManyBySectionId(
+  sectionId: number,
+  API_BASE: string,
+  updateEntries: (cb: (prev: TimetableEntry[]) => TimetableEntry[]) => void,
+  departmentId: number | null
+) {
+  if (!sectionId || !API_BASE || !departmentId) return;
+
+  const token = localStorage.getItem("token");
+  if (!token) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/timetables/section/${sectionId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (res.ok) {
+      updateEntries((prev) => prev.filter((e) => e.sectionId !== sectionId));
+    } else {
+      // eslint-disable-next-line no-console
+      console.error("Failed to delete timetable entries for section", sectionId);
+    }
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error("Error deleting timetable entries for section", sectionId, e);
+  }
+}
+
+async function removeAllTimetablesForDepartment(
+  departmentId: number | null,
+  API_BASE: string,
+  updateEntries: (cb: (prev: TimetableEntry[]) => TimetableEntry[]) => void
+) {
+  if (!departmentId || !API_BASE) return;
+
+  const token = localStorage.getItem("token");
+  if (!token) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/timetables/department/${departmentId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (res.ok) {
+      updateEntries(() => []);
+    } else {
+      // eslint-disable-next-line no-console
+      console.error("Failed to delete all timetable entries for department", departmentId);
+    }
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error("Error deleting all timetable entries for department", departmentId, e);
+  }
+}
+
+// Helper: fetch ONLY the sections for a department
+async function fetchSectionsListByDepartmentId(deptId: number, API_BASE: string): Promise<SectionInfo[]> {
+  const token = localStorage.getItem("token");
+  if (!token || !API_BASE) return [];
+  try {
+    // Assume we have a dedicated API route e.g. /sections/department/:id 
+    // that returns array of sections: [{id, name, semester, course:{id,name}}]
+    const res = await fetch(`${API_BASE}/sections?departmentId=${deptId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      // Defensive typing
+      if (Array.isArray(data)) return data;
+    }
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error("Error fetching sections list for department", deptId, e);
+  }
+  return [];
+}
+
+// --- Helper: Fetch timetable entries for a single section ---
+async function fetchTimetableBySectionId(sectionId: number, API_BASE: string) {
+  const token = localStorage.getItem("token");
+  if (!token || !API_BASE) return [];
+  try {
+    const res = await fetch(`${API_BASE}/timetables/section/${sectionId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data;
+    }
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error("Error fetching timetable by section:", sectionId, e);
+  }
+  return [];
+}
+
 export default function GenerateTimetablePage() {
   const router = useRouter();
 
-  const [entries, setEntries] = useState<TimetableEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Now we only store sections info, not timetable entries for all
+  const [sections, setSections] = useState<SectionInfo[]>([]);
+  const [sectionEntries, setSectionEntries] = useState<{
+    [sectionId: number]: TimetableEntry[] | undefined;
+  }>({});
+  const [expandedSection, setExpandedSection] = useState<number | null>(null);
+  const [loadingSections, setLoadingSections] = useState(true); // loading flag for sections list
+
+  // Loading state for section timetable (per section)
+  const [sectionLoading, setSectionLoading] = useState<{ [sectionId: number]: boolean }>({});
+  
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [departmentName, setDepartmentName] = useState<string>("");
   const [departmentId, setDepartmentId] = useState<number | null>(null);
+  const [removingAll, setRemovingAll] = useState(false);
+  const [removingSection, setRemovingSection] = useState<number | null>(null);
 
   const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
 
-  async function fetchTimetables(deptId: number) {
-    const token = localStorage.getItem("token");
-    if (!token) return;
-
-    const res = await fetch(
-      `${API_BASE}/timetables/department/${deptId}`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
-
-    if (res.ok) {
-      const data = await res.json();
-      setEntries(data);
-    } else {
-      setEntries([]);
+  // Fetch only section list for department
+  async function fetchSectionsList() {
+    if (!departmentId) return;
+    setLoadingSections(true);
+    try {
+      const sectionArr = await fetchSectionsListByDepartmentId(departmentId, API_BASE);
+      setSections(sectionArr ?? []);
+      // Optional: clean stale entries
+      setSectionEntries((prev) => {
+        const next: typeof prev = {};
+        sectionArr.forEach((s) => {
+          if (prev[s.id]) next[s.id] = prev[s.id];
+        });
+        return next;
+      });
+    } catch (e) {
+      setSections([]);
+    } finally {
+      setLoadingSections(false);
     }
   }
 
   useEffect(() => {
     async function init() {
-      setLoading(true);
+      setLoadingSections(true);
       setError(null);
+      setSections([]);
+      setSectionEntries({});
+      setExpandedSection(null);
 
       const user = await getUserFromToken();
 
       if (!user || Number(user.role) !== HOD_ROLE_ID) {
         setError("Unauthorized. Only HOD can access this page.");
-        setLoading(false);
+        setLoadingSections(false);
         return;
       }
 
@@ -195,22 +320,26 @@ export default function GenerateTimetablePage() {
 
         if (!data.departmentId || !data.department) {
           setError("Your account is not linked to a department.");
-          setLoading(false);
+          setLoadingSections(false);
           return;
         }
 
         setDepartmentId(data.departmentId);
         setDepartmentName(data.department.name);
 
-        await fetchTimetables(data.departmentId);
+        await fetchSectionsListByDepartmentId(data.departmentId, API_BASE)
+          .then((sectionArr) => {
+            setSections(sectionArr ?? []);
+          });
       } catch (err: any) {
         setError(err.message || "Error loading data.");
       } finally {
-        setLoading(false);
+        setLoadingSections(false);
       }
     }
 
     init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
   async function handleGenerate() {
@@ -241,7 +370,10 @@ export default function GenerateTimetablePage() {
         throw new Error(result.message || result.error || "Failed to generate timetable");
       }
 
-      await fetchTimetables(departmentId);
+      // Refetch sections list after generating!
+      await fetchSectionsList();
+      setSectionEntries({});
+      setExpandedSection(null);
     } catch (err: any) {
       setError(err.message || "Error generating timetable.");
     } finally {
@@ -249,25 +381,68 @@ export default function GenerateTimetablePage() {
     }
   }
 
-  const entriesBySection = entries.reduce<Record<number, TimetableEntry[]>>(
-    (acc, e) => {
-      const sid = e.sectionId ?? 0;
-      if (!acc[sid]) acc[sid] = [];
-      acc[sid].push(e);
-      return acc;
-    },
-    {}
-  );
+  async function handleRemoveAll() {
+    if (!departmentId) return;
+    setRemovingAll(true);
+    setError(null);
 
-  const sectionIds = Object.keys(entriesBySection)
-    .map(Number)
-    .sort((a, b) => {
-      const aLabel = sectionLabel(entriesBySection[a][0]);
-      const bLabel = sectionLabel(entriesBySection[b][0]);
-      return aLabel.localeCompare(bLabel);
-    });
+    try {
+      await removeAllTimetablesForDepartment(departmentId, API_BASE, () => {});
+      // Remove from UI as well
+      setSections([]);
+      setSectionEntries({});
+      setExpandedSection(null);
+    } catch (err: any) {
+      setError(err.message || "Error deleting all timetables.");
+    } finally {
+      setRemovingAll(false);
+    }
+  }
 
-  if (loading) {
+  async function handleToggleSection(sectionId: number) {
+    setError(null);
+    if (expandedSection === sectionId) {
+      setExpandedSection(null);
+      return;
+    }
+    setExpandedSection(sectionId);
+    // Only fetch timetable entries for this section if not loaded already
+    if (!sectionEntries[sectionId]) {
+      setSectionLoading((prev) => ({ ...prev, [sectionId]: true }));
+      const fetched = await fetchTimetableBySectionId(sectionId, API_BASE);
+      setSectionEntries((prev) => ({
+        ...prev,
+        [sectionId]: fetched || [],
+      }));
+      setSectionLoading((prev) => ({ ...prev, [sectionId]: false }));
+    }
+  }
+
+  async function handleRemoveSection(sectionId: number) {
+    setRemovingSection(sectionId);
+    try {
+      await removeManyBySectionId(
+        sectionId,
+        API_BASE,
+        (prev) => prev.filter((e) => e.sectionId !== sectionId),
+        departmentId
+      );
+      // Remove from UI section list and timetable cache
+      setSections((old) => old.filter((s) => s.id !== sectionId));
+      setSectionEntries((old) => {
+        const next = { ...old };
+        delete next[sectionId];
+        return next;
+      });
+      if (expandedSection === sectionId) setExpandedSection(null);
+    } catch (e) {
+      // nothing, error shown elsewhere
+    } finally {
+      setRemovingSection(null);
+    }
+  }
+
+  if (loadingSections) {
     return (
       <div className="min-h-screen bg-stone-50 dark:bg-stone-950 flex items-center justify-center">
         <div className="h-10 w-10 animate-spin rounded-full border-2 border-amber-500 border-t-transparent" />
@@ -340,105 +515,181 @@ export default function GenerateTimetablePage() {
                 "Generate Timetable"
               )}
             </button>
+            <button
+              onClick={handleRemoveAll}
+              disabled={removingAll || sections.length === 0}
+              className="px-6 py-3 rounded-lg bg-red-500 hover:bg-red-600 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold transition-colors flex items-center gap-2"
+              title="Remove all timetable entries for this department"
+            >
+              {removingAll ? (
+                <>
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  Removing...
+                </>
+              ) : (
+                "Remove All"
+              )}
+            </button>
           </div>
         </div>
 
         <h2 className="text-lg font-semibold mb-4">Department Timetables</h2>
-
-        {sectionIds.length === 0 ? (
+        {sections.length === 0 ? (
           <div className="rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 p-12 text-center text-stone-500 dark:text-stone-400">
             No timetables generated yet. Click &quot;Generate Timetable&quot; to create
             timetables for your department.
           </div>
         ) : (
-          <div className="space-y-8">
-            {sectionIds.map((sectionId) => {
-              const sectionEntries = entriesBySection[sectionId];
-              const grid = buildGrid(sectionEntries);
-              const label = sectionLabel(sectionEntries[0]);
-
+          <div className="space-y-4">
+            {sections.map((section) => {
+              const isExpanded = expandedSection === section.id;
+              const entries = sectionEntries[section.id];
+              const isLoadingThisSection = !!sectionLoading[section.id];
               return (
                 <div
-                  key={sectionId}
+                  key={section.id}
                   className="rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 shadow-sm overflow-hidden"
                 >
-                  <div className="px-4 py-3 bg-stone-100 dark:bg-stone-800/80 border-b border-stone-200 dark:border-stone-700 font-semibold text-stone-800 dark:text-stone-200">
-                    {label}
+                  <div
+                    className={`w-full flex items-center justify-between px-4 py-3 bg-stone-100 dark:bg-stone-800/80 border-b border-stone-200 dark:border-stone-700 font-semibold text-stone-800 dark:text-stone-200 hover:bg-amber-50 dark:hover:bg-stone-800 focus:outline-none transition cursor-pointer text-left`}
+                    role="button"
+                    onClick={() => handleToggleSection(section.id)}
+                    aria-expanded={isExpanded}
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") handleToggleSection(section.id);
+                    }}
+                  >
+                    <span className="flex items-center gap-2">
+                      <span
+                        className={`inline-block transition-transform duration-200 ${
+                          isExpanded ? "rotate-90" : ""
+                        }`}
+                        style={{
+                          display: "inline-block",
+                          transformOrigin: "center center",
+                        }}
+                      >
+                        ▶
+                      </span>
+                      {sectionLabelFromSectionInfo(section)}
+                    </span>
+                    <div className="flex items-center">
+                      <Link
+                        href={`/timetable/${section.id}`}
+                        onClick={e => e.stopPropagation()}
+                        className="ml-2 px-3 py-1 rounded bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium transition-colors"
+                        title="Edit timetable for this section"
+                      >
+                        Edit
+                      </Link>
+                      <button
+                        type="button"
+                        disabled={removingSection === section.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveSection(section.id);
+                        }}
+                        className="ml-2 px-3 py-1 rounded bg-red-500 hover:bg-red-600 text-white text-xs font-medium disabled:opacity-60"
+                        title="Remove all timetable entries for this section"
+                      >
+                        {removingSection === section.id ? "Removing..." : "Remove"}
+                      </button>
+                    </div>
                   </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full border-collapse text-sm">
-                      <thead>
-                        <tr>
-                          <th className="w-24 border-b border-r border-stone-200 dark:border-stone-700 px-3 py-3 text-left font-semibold text-stone-700 dark:text-stone-300">
-                            Day
-                          </th>
-                          {grid.slotDetails.map((slot: any) => (
-                            <th
-                              key={slot.id}
-                              className="border-b border-r border-stone-200 dark:border-stone-700 px-3 py-3 text-center font-semibold text-stone-700 dark:text-stone-300 whitespace-nowrap"
-                            >
-                              {formatTime(slot.startTime)} –{" "}
-                              {formatTime(slot.endTime)}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {grid.dayNames.map((d: any) => {
-                          const cells = getCellsForDay(
-                            d.id,
-                            grid.slotIds,
-                            grid.byDay
-                          );
-
+                  {isExpanded && (
+                    <div className="overflow-x-auto animate-fadeIn">
+                      {isLoadingThisSection ? (
+                        <div className="py-12 text-center">
+                          <span className="h-6 w-6 animate-spin rounded-full border-2 border-amber-500 border-t-transparent inline-block" />
+                        </div>
+                      ) : !entries ? (
+                        <div className="py-12 text-center">
+                          <span className="h-6 w-6 animate-spin rounded-full border-2 border-amber-500 border-t-transparent inline-block" />
+                        </div>
+                      ) : entries.length === 0 ? (
+                        <div className="text-center py-6 text-stone-500 dark:text-stone-400 text-sm">
+                          No timetable entries for this section.
+                        </div>
+                      ) : (
+                        (() => {
+                          const grid = buildGrid(entries);
                           return (
-                            <tr key={d.id}>
-                              <td className="border-b border-r border-stone-200 dark:border-stone-700 px-3 py-2 font-medium text-stone-600 dark:text-stone-400">
-                                {d.name.slice(0, 3)}
-                              </td>
-
-                              {cells.map((cell: any, i: number) => (
-                                <td
-                                  key={i}
-                                  className="border-b border-r border-stone-200 dark:border-stone-700 p-2 align-top"
-                                >
-                                  {cell.entries.length === 0 ? (
-                                    <span className="text-stone-400 dark:text-stone-500 text-xs block text-center py-4">
-                                      —
-                                    </span>
-                                  ) : (
-                                    <div className="flex flex-col gap-1">
-                                      {cell.entries.map((e: any) => (
-                                        <div
-                                          key={e.id}
-                                          className="rounded-lg border border-stone-300 dark:border-stone-600 bg-stone-100 dark:bg-stone-800/80 p-2"
+                            <table className="w-full border-collapse text-sm">
+                              <thead>
+                                <tr>
+                                  <th className="w-24 border-b border-r border-stone-200 dark:border-stone-700 px-3 py-3 text-left font-semibold text-stone-700 dark:text-stone-300">
+                                    Day
+                                  </th>
+                                  {grid.slotDetails.map((slot: any) => (
+                                    <th
+                                      key={slot.id}
+                                      className="border-b border-r border-stone-200 dark:border-stone-700 px-3 py-3 text-center font-semibold text-stone-700 dark:text-stone-300 whitespace-nowrap"
+                                    >
+                                      {formatTime(slot.startTime)} –{" "}
+                                      {formatTime(slot.endTime)}
+                                    </th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {grid.dayNames.map((d: any) => {
+                                  const cells = getCellsForDay(
+                                    d.id,
+                                    grid.slotIds,
+                                    grid.byDay
+                                  );
+                                  return (
+                                    <tr key={d.id}>
+                                      <td className="border-b border-r border-stone-200 dark:border-stone-700 px-3 py-2 font-medium text-stone-600 dark:text-stone-400">
+                                        {d.name.slice(0, 3)}
+                                      </td>
+                                      {cells.map((cell: any, i: number) => (
+                                        <td
+                                          key={i}
+                                          className="border-b border-r border-stone-200 dark:border-stone-700 p-2 align-top"
                                         >
-                                          <div className="font-semibold text-stone-800 dark:text-stone-200">
-                                            {e.subject.name}
-                                            {e.subject.isLab && (
-                                              <span className="text-xs ml-1 font-normal">
-                                                (Lab)
-                                              </span>
-                                            )}
-                                          </div>
-                                          <div className="text-xs text-stone-600 dark:text-stone-400">
-                                            {e.faculty.user.name}
-                                          </div>
-                                          <div className="text-xs text-stone-500">
-                                            {e.room.name}
-                                          </div>
-                                        </div>
+                                          {cell.entries.length === 0 ? (
+                                            <span className="text-stone-400 dark:text-stone-500 text-xs block text-center py-4">
+                                              —
+                                            </span>
+                                          ) : (
+                                            <div className="flex flex-col gap-1">
+                                              {cell.entries.map((e: any) => (
+                                                <div
+                                                  key={e.id}
+                                                  className="rounded-lg border border-stone-300 dark:border-stone-600 bg-stone-100 dark:bg-stone-800/80 p-2"
+                                                >
+                                                  <div className="font-semibold text-stone-800 dark:text-stone-200">
+                                                    {e.subject.name}
+                                                    {e.subject.isLab && (
+                                                      <span className="text-xs ml-1 font-normal">
+                                                        (Lab)
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                  <div className="text-xs text-stone-600 dark:text-stone-400">
+                                                    {e.faculty.user.name}
+                                                  </div>
+                                                  <div className="text-xs text-stone-500">
+                                                    {e.room.name}
+                                                  </div>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </td>
                                       ))}
-                                    </div>
-                                  )}
-                                </td>
-                              ))}
-                            </tr>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
                           );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                        })()
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}

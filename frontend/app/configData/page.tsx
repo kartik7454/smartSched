@@ -1856,4 +1856,3 @@ export default function ConfigDataPage() {
     </div>
   );
 }
-

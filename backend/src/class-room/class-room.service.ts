@@ -39,4 +39,11 @@ export class RoomsService {
       where: { id },
     });
   }
+
+  findByDepartment(departmentId: number) {
+    return this.prisma.room.findMany({
+      where: { departmentId },
+      include: { department: true },
+    });
+  }
 }

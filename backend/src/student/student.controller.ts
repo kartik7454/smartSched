@@ -24,6 +24,10 @@ export class StudentController {
   findAll() {
     return this.service.findAll();
   }
+  @Get('user/:userId')
+  findByUserId(@Param('userId') userId: string) {
+    return this.service.findByUserId(+userId);
+  }
 
   @Get(':id')
   findOne(@Param('id') id: string) {

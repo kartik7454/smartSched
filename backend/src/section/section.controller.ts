@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { SectionService } from './section.service';
 import { CreateSectionDto } from './dto/create-section.dto';
@@ -21,7 +22,14 @@ export class SectionController {
   }
 
   @Get()
-  findAll() {
+  // The endpoint for this method is: GET /sections
+  // If you pass a query parameter `departmentId`, for example /sections?departmentId=1,
+  // it will return only the sections for that department.
+  // Otherwise, it returns all sections.
+  findAll(@Query('departmentId') departmentId?: string) {
+    if (departmentId) {
+      return this.sectionService.findByDepartmentId(+departmentId);
+    }
     return this.sectionService.findAll();
   }
 

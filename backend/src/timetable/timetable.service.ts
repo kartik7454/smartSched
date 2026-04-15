@@ -1,7 +1,12 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTimetableDto } from './dto/create-timetable.dto';
 import { UpdateTimetableDto } from './dto/update-timetable.dto';
+import { SectionTimetableSlotDto } from './dto/section-timetable-slot.dto';
 
 @Injectable()
 export class TimetableService {
@@ -93,6 +98,104 @@ export class TimetableService {
     return this.prisma.timetable.delete({
       where: { id },
       include: this.includeRelations,
+    });
+  }
+
+  // Removes all timetables for a given sectionId
+  async removeBySectionId(sectionId: number) {
+    // Optionally you can first check if any exists and throw if not. Here we simply deleteMany.
+    const result = await this.prisma.timetable.deleteMany({
+      where: { sectionId },
+    });
+    return { count: result.count };
+  }
+
+  /**
+   * Replace all timetable rows for a section: delete missing ids, update kept ids, create new (id missing or <= 0).
+   */
+  async replaceSectionTimetable(
+    sectionId: number,
+    items: SectionTimetableSlotDto[],
+  ) {
+    const section = await this.prisma.section.findUnique({
+      where: { id: sectionId },
+    });
+    if (!section) throw new NotFoundException('Section not found');
+
+    const existing = await this.prisma.timetable.findMany({
+      where: { sectionId },
+      select: { id: true },
+    });
+    const existingIds = new Set(existing.map((e) => e.id));
+
+    const keepIds = new Set(
+      items
+        .filter((i) => i.id !== undefined && i.id !== null && i.id > 0)
+        .map((i) => i.id as number),
+    );
+
+    for (const kid of keepIds) {
+      if (!existingIds.has(kid)) {
+        throw new BadRequestException(
+          `Timetable row ${kid} does not belong to this section.`,
+        );
+      }
+    }
+
+    const toDelete = [...existingIds].filter((id) => !keepIds.has(id));
+
+    await this.prisma.$transaction(async (tx) => {
+      if (toDelete.length) {
+        await tx.timetable.deleteMany({
+          where: { id: { in: toDelete }, sectionId },
+        });
+      }
+
+      for (const item of items) {
+        const {
+          id,
+          subjectId,
+          facultyId,
+          roomId,
+          dayId,
+          timeSlotId,
+          groupId,
+        } = item;
+        const isNew = id === undefined || id === null || id <= 0;
+
+        if (!isNew) {
+          await tx.timetable.update({
+            where: { id: id as number },
+            data: {
+              subjectId,
+              facultyId,
+              roomId,
+              dayId,
+              timeSlotId,
+              ...(groupId !== undefined ? { groupId } : {}),
+            },
+          });
+        } else {
+          await tx.timetable.create({
+            data: {
+              sessionId: section.sessionId,
+              sectionId,
+              subjectId,
+              facultyId,
+              roomId,
+              dayId,
+              timeSlotId,
+              groupId: groupId ?? null,
+            },
+          });
+        }
+      }
+    });
+
+    return this.prisma.timetable.findMany({
+      where: { sectionId },
+      include: this.includeRelations,
+      orderBy: [{ dayId: 'asc' }, { timeSlotId: 'asc' }],
     });
   }
 }

@@ -149,7 +149,7 @@ export default function MyTimetablePage() {
         );
 
         const data = await res.json();
-
+console.log("data",data)
         const res2 = await fetch(
           `http://localhost:3000/timetables/faculty/${data.faculty.id}`,
           {

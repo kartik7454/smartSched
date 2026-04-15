@@ -14,6 +14,7 @@ export default function LoginPage() {
     try {
       const response = await fetch("http://localhost:3000/auth/login", {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -25,11 +26,13 @@ export default function LoginPage() {
       
       const data = await response.json();
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = data;
         setError(errorData.message || "Login failed.");
         return;
+      } else {
+        localStorage.setItem("token", data.access_token);
+        window.location.href = "/"; // redirect to home
       }
-      else{ localStorage.setItem("token", data.access_token);}
 
       // You could also handle storing tokens, redirect, etc. here
     } catch {

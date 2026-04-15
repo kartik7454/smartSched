@@ -1,17 +1,20 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Patch,
-  Param,
+  Controller,
   Delete,
+  Get,
+  Param,
+  ParseArrayPipe,
   ParseIntPipe,
+  Patch,
+  Post,
+  Put,
   UseGuards,
 } from '@nestjs/common';
 import { TimetableService } from './timetable.service';
 import { CreateTimetableDto } from './dto/create-timetable.dto';
 import { UpdateTimetableDto } from './dto/update-timetable.dto';
+import { SectionTimetableSlotDto } from './dto/section-timetable-slot.dto';
 import { AuthGuard } from '@nestjs/passport';
 
 @Controller('timetables')
@@ -32,6 +35,16 @@ export class TimetableController {
   @Get('section/:sectionId')
   findBySectionId(@Param('sectionId', ParseIntPipe) sectionId: number) {
     return this.timetableService.findBySectionId(sectionId);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Put('section/:sectionId')
+  replaceSectionTimetable(
+    @Param('sectionId', ParseIntPipe) sectionId: number,
+    @Body(new ParseArrayPipe({ items: SectionTimetableSlotDto }))
+    body: SectionTimetableSlotDto[],
+  ) {
+    return this.timetableService.replaceSectionTimetable(sectionId, body);
   }
 
   @UseGuards(AuthGuard('jwt'))
@@ -64,5 +77,15 @@ export class TimetableController {
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.timetableService.remove(id);
+  }
+
+
+  
+
+  // Delete multiple timetables by sectionId
+  @UseGuards(AuthGuard('jwt'))
+  @Delete('section/:sectionId')
+  removeManyBySectionId(@Param('sectionId', ParseIntPipe) sectionId: number) {
+    return this.timetableService.removeBySectionId(sectionId);
   }
 }

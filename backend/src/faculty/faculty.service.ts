@@ -48,4 +48,13 @@ export class FacultyService {
       where: { id },
     });
   }
+  async findByUserId(userId: number) {
+    return this.prisma.faculty.findFirst({
+      where: { userId },
+      include: {
+        user: true,
+        department: true,
+      },
+    });
+  }
 }

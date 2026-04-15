@@ -6,7 +6,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
-
+import { NextResponse } from "next/server";
 @Injectable()
 export class AuthService {
   constructor(
@@ -72,18 +72,19 @@ export class AuthService {
   }
 
   // 🔐 LOGIN USER
-  async login(email: string, password: string) {
-    const user = await this.validateUser(email, password);
+ // auth.service.ts
+async login(email: string, password: string) {
+  const user = await this.validateUser(email, password);
 
-    const payload = {
-      sub: user.id,
-      email: user.email,
-      role: user.roleId,
-    };
+  const payload = {
+    sub: user.id,
+    email: user.email,
+    role: user.roleId,
+  };
 
-    return {
-      message: 'Login successful',
-      access_token: this.jwtService.sign(payload),
-    };
-  }
+  return {
+    access_token: this.jwtService.sign(payload),
+    user,
+  };
+}
 }

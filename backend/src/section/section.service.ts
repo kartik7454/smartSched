@@ -34,6 +34,18 @@ export class SectionService {
     });
   }
 
+  // FIND BY DEPARTMENT ID
+  async findByDepartmentId(departmentId: number) {
+    return this.prisma.section.findMany({
+      include: { course: true, session: true },
+      where: {
+        course: {
+          departmentId: departmentId
+        }
+      }
+    });
+  }
+
   // GET ONE
   async findOne(id: number) {
     const section = await this.prisma.section.findUnique({
