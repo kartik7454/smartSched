@@ -42,8 +42,21 @@ export default function LoginPage() {
         setLoading(false);
         return;
       } else {
-        localStorage.setItem("token", data.access_token);
-        window.location.href = "/"; // redirect to home
+        const accessToken = data.access_token as string;
+        localStorage.setItem("token", accessToken);
+        // Same-origin cookie for Server Components (Header). API Set-Cookie only applies to the API host.
+        const sessionRes = await fetch("/api/auth/session", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: accessToken }),
+        });
+        if (!sessionRes.ok) {
+          setError("Could not start session. Try again.");
+          setLoading(false);
+          return;
+        }
+        window.location.href = "/";
       }
     } catch {
       setError("Login failed. Please try again later.");

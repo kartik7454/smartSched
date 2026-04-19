@@ -1,6 +1,6 @@
-import { Controller, Post, Body, Res } from '@nestjs/common';
+import { Controller, Post, Body } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import type { Response } from 'express';
+
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
@@ -21,27 +21,17 @@ export class AuthController {
   }
 
   @Post('login')
-  async login(
-    @Body() body: { email: string; password: string },
-    @Res() res: Response,
-  ) {
+  async login(@Body() body: { email: string; password: string }) {
     const { access_token, user } = await this.authService.login(
       body.email,
       body.password,
     );
-
-    res.cookie('token', access_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax', // 🔥 IMPORTANT (not strict)
-      path: '/',
-    });
-
-    return res.json({
+    // Session cookie must be set on the frontend origin (e.g. Next Route Handler), not here —
+    // browsers scope Set-Cookie to this API host, so it would not appear on Vercel.
+    return {
       success: true,
       user,
       access_token,
-    });
+    };
   }
-  
 }
