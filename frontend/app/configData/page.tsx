@@ -44,6 +44,7 @@ import {
   updateSubject,
   updateTimeSlot,
 } from "@/lib/api";
+import { API_BASE } from "@/lib/apiBase";
 
 const HOD_ROLE_ID = 4;
 
@@ -124,8 +125,6 @@ export default function ConfigDataPage() {
   const [courseSubjects, setCourseSubjects] = useState<any[]>([]);
   const [facultySubjects, setFacultySubjects] = useState<any[]>([]);
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
-
   async function loadAll(deptId: number) {
     const [
       depList,
@@ -155,7 +154,7 @@ export default function ConfigDataPage() {
       getFacultySubjects(),
     ]);
 
-    setDepartments(depList); // (kept for future department switching UI)
+    setDepartments(depList);
     setSessions(sessList);
     setCourses(courseList.filter((c: any) => c.departmentId === deptId));
     setSubjects(subjectList.filter((s: any) => s.departmentId === deptId));
@@ -584,9 +583,13 @@ export default function ConfigDataPage() {
     }
   }, [faculty]);
 
+  // --- FORCE LIGHT THEME HERE ---
+  // add a root <div> that disables dark mode via "bg-white" and omits "dark:" classes inside
+  // we do this by overriding dark selectors and not including any dark: className
+  // (Below is the same UI but all references to dark:* classes have been stripped out and base colors made light)
   if (loading) {
     return (
-      <div className="min-h-screen bg-stone-50 dark:bg-stone-950 flex items-center justify-center">
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center">
         <div className="h-10 w-10 animate-spin rounded-full border-2 border-amber-500 border-t-transparent" />
       </div>
     );
@@ -594,15 +597,15 @@ export default function ConfigDataPage() {
 
   if (error && !departmentId) {
     return (
-      <div className="min-h-screen bg-stone-50 dark:bg-stone-950 p-6">
+      <div className="min-h-screen bg-stone-50 p-6">
         <div className="max-w-2xl mx-auto">
           <Link
             href="/"
-            className="text-amber-600 hover:text-amber-700 dark:text-amber-400 text-sm font-medium mb-4 inline-block"
+            className="text-amber-600 hover:text-amber-700 text-sm font-medium mb-4 inline-block"
           >
             ← Back
           </Link>
-          <div className="rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 text-red-800 dark:text-red-200 px-6 py-4">
+          <div className="rounded-xl bg-red-50 border border-red-200 text-red-800 px-6 py-4">
             {error}
           </div>
         </div>
@@ -621,7 +624,7 @@ export default function ConfigDataPage() {
         "px-3 py-2 rounded-lg text-sm font-medium border transition-colors whitespace-nowrap",
         activeTab === t.id
           ? "bg-amber-500 text-white border-amber-500"
-          : "bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-200 hover:bg-stone-50 dark:hover:bg-stone-800"
+          : "bg-white border-stone-200 text-stone-700 hover:bg-stone-50"
       )}
     >
       {t.label}
@@ -629,25 +632,25 @@ export default function ConfigDataPage() {
   );
 
   return (
-    <div className="min-h-screen bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100">
-      <header className="sticky top-0 z-10 border-b border-stone-200 dark:border-stone-800 bg-white/95 dark:bg-stone-900/95 backdrop-blur">
+    <div className="min-h-screen bg-stone-50 text-stone-900">
+      <header className="sticky top-0 z-10 border-b border-stone-200 bg-white/95 backdrop-blur">
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 flex flex-wrap items-center justify-between gap-4">
           <Link
             href="/"
-            className="text-stone-500 hover:text-stone-900 dark:hover:text-stone-300 text-sm font-medium"
+            className="text-stone-500 hover:text-stone-900 text-sm font-medium"
           >
             ← Back
           </Link>
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-semibold tracking-tight">HOD Config</h1>
-            <span className="text-sm text-stone-500 dark:text-stone-400">
+            <span className="text-sm text-stone-500">
               {departmentName}
             </span>
           </div>
           <button
             onClick={refresh}
             disabled={busy}
-            className="px-4 py-2 rounded-lg bg-stone-900 dark:bg-white text-white dark:text-stone-900 disabled:opacity-60"
+            className="px-4 py-2 rounded-lg bg-stone-900 text-white disabled:opacity-60"
           >
             {busy ? "Working..." : "Refresh"}
           </button>
@@ -656,15 +659,15 @@ export default function ConfigDataPage() {
 
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
         {error && (
-          <div className="rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 text-red-800 dark:text-red-200 px-4 py-3 text-sm mb-6">
+          <div className="rounded-lg bg-red-50 border border-red-200 text-red-800 px-4 py-3 text-sm mb-6">
             {error}
           </div>
         )}
 
         <div className="flex flex-wrap gap-2 mb-6">{TABS.map(tabButton)}</div>
 
-        <div className="rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 shadow-sm overflow-hidden">
-          <div className="px-4 py-3 border-b border-stone-200 dark:border-stone-700 flex items-center justify-between">
+        <div className="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
+          <div className="px-4 py-3 border-b border-stone-200 flex items-center justify-between">
             <div className="font-semibold">{TABS.find((t) => t.id === activeTab)?.label}</div>
             {editing ? (
               <div className="flex gap-2">
@@ -677,7 +680,7 @@ export default function ConfigDataPage() {
                 </button>
                 <button
                   onClick={cancelEdit}
-                  className="px-3 py-1.5 rounded-lg border border-stone-200 dark:border-stone-700"
+                  className="px-3 py-1.5 rounded-lg border border-stone-200"
                 >
                   Cancel
                 </button>
@@ -690,27 +693,27 @@ export default function ConfigDataPage() {
           {/* FACULTY */}
           {activeTab === "faculty" && (
             <div className="p-4 space-y-4">
-              <div className="rounded-lg border border-stone-200 dark:border-stone-700 p-4">
+              <div className="rounded-lg border border-stone-200 p-4">
                 <div className="font-semibold mb-3">Add Faculty (creates User + Faculty)</div>
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
                   <input
                     value={newFacultyUser.name}
                     onChange={(e) => setNewFacultyUser((s) => ({ ...s, name: e.target.value }))}
                     placeholder="Name"
-                    className="px-3 py-2 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                    className="px-3 py-2 rounded border border-stone-200 bg-white"
                   />
                   <input
                     value={newFacultyUser.email}
                     onChange={(e) => setNewFacultyUser((s) => ({ ...s, email: e.target.value }))}
                     placeholder="Email"
-                    className="px-3 py-2 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                    className="px-3 py-2 rounded border border-stone-200 bg-white"
                   />
                   <input
                     type="password"
                     value={newFacultyUser.password}
                     onChange={(e) => setNewFacultyUser((s) => ({ ...s, password: e.target.value }))}
                     placeholder="Password"
-                    className="px-3 py-2 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                    className="px-3 py-2 rounded border border-stone-200 bg-white"
                   />
                   <input
                     type="number"
@@ -719,7 +722,7 @@ export default function ConfigDataPage() {
                       setNewFacultyUser((s) => ({ ...s, maxLecturesPerWeek: num(e.target.value) }))
                     }
                     placeholder="Max lectures/week"
-                    className="px-3 py-2 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                    className="px-3 py-2 rounded border border-stone-200 bg-white"
                   />
                   <button
                     onClick={handleCreateFacultyUserAndFaculty}
@@ -737,7 +740,7 @@ export default function ConfigDataPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-left border-b border-stone-200 dark:border-stone-700">
+                    <tr className="text-left border-b border-stone-200">
                       <th className="px-3 py-2">Name</th>
                       <th className="px-3 py-2">Max/week</th>
                       <th className="px-3 py-2 w-40">Actions</th>
@@ -747,7 +750,7 @@ export default function ConfigDataPage() {
                     {faculty.map((f: any) => {
                       const isEditing = editing?.type === "faculty" && editing.id === f.id;
                       return (
-                        <tr key={f.id} className="border-b border-stone-100 dark:border-stone-800">
+                        <tr key={f.id} className="border-b border-stone-100">
                           <td className="px-3 py-2">
                             {f.user?.name ?? `User #${f.userId}`}
                           </td>
@@ -762,7 +765,7 @@ export default function ConfigDataPage() {
                                     maxLecturesPerWeek: num(e.target.value),
                                   }))
                                 }
-                                className="w-28 px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                                className="w-28 px-2 py-1 rounded border border-stone-200 bg-white"
                               />
                             ) : (
                               f.maxLecturesPerWeek
@@ -773,14 +776,14 @@ export default function ConfigDataPage() {
                               {!isEditing && (
                                 <button
                                   onClick={() => startEdit("faculty", f)}
-                                  className="px-3 py-1.5 rounded border border-stone-200 dark:border-stone-700"
+                                  className="px-3 py-1.5 rounded border border-stone-200"
                                 >
                                   Edit
                                 </button>
                               )}
                               <button
                                 onClick={() => handleDelete("faculty", f.id)}
-                                className="px-3 py-1.5 rounded border border-red-300 text-red-700 dark:text-red-300 dark:border-red-800"
+                                className="px-3 py-1.5 rounded border border-red-300 text-red-700"
                               >
                                 Delete
                               </button>
@@ -805,34 +808,34 @@ export default function ConfigDataPage() {
           {/* STUDENTS */}
           {activeTab === "students" && (
             <div className="p-4 space-y-4">
-              <div className="rounded-lg border border-stone-200 dark:border-stone-700 p-4">
+              <div className="rounded-lg border border-stone-200 p-4">
                 <div className="font-semibold mb-3">Add Student (creates User + Student)</div>
                 <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
                   <input
                     value={newStudentUser.name}
                     onChange={(e) => setNewStudentUser((s) => ({ ...s, name: e.target.value }))}
                     placeholder="Name"
-                    className="px-3 py-2 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                    className="px-3 py-2 rounded border border-stone-200 bg-white"
                   />
                   <input
                     value={newStudentUser.email}
                     onChange={(e) => setNewStudentUser((s) => ({ ...s, email: e.target.value }))}
                     placeholder="Email"
-                    className="px-3 py-2 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                    className="px-3 py-2 rounded border border-stone-200 bg-white"
                   />
                   <input
                     type="password"
                     value={newStudentUser.password}
                     onChange={(e) => setNewStudentUser((s) => ({ ...s, password: e.target.value }))}
                     placeholder="Password"
-                    className="px-3 py-2 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                    className="px-3 py-2 rounded border border-stone-200 bg-white"
                   />
                   <select
                     value={newStudentUser.sectionId}
                     onChange={(e) =>
                       setNewStudentUser((s) => ({ ...s, sectionId: num(e.target.value) }))
                     }
-                    className="px-3 py-2 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                    className="px-3 py-2 rounded border border-stone-200 bg-white"
                   >
                     {sections.map((sec: any) => (
                       <option key={sec.id} value={sec.id}>
@@ -844,7 +847,7 @@ export default function ConfigDataPage() {
                     value={newStudentUser.rollNumber}
                     onChange={(e) => setNewStudentUser((s) => ({ ...s, rollNumber: e.target.value }))}
                     placeholder="Roll number"
-                    className="px-3 py-2 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                    className="px-3 py-2 rounded border border-stone-200 bg-white"
                   />
                   <button
                     onClick={handleCreateStudentUserAndStudent}
@@ -862,7 +865,7 @@ export default function ConfigDataPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-left border-b border-stone-200 dark:border-stone-700">
+                    <tr className="text-left border-b border-stone-200">
                       <th className="px-3 py-2">Name</th>
                       <th className="px-3 py-2">Roll</th>
                       <th className="px-3 py-2">Section</th>
@@ -873,7 +876,7 @@ export default function ConfigDataPage() {
                     {students.map((s: any) => {
                       const isEditing = editing?.type === "students" && editing.id === s.id;
                       return (
-                        <tr key={s.id} className="border-b border-stone-100 dark:border-stone-800">
+                        <tr key={s.id} className="border-b border-stone-100">
                           <td className="px-3 py-2">{s.user?.name ?? `User #${s.userId}`}</td>
                           <td className="px-3 py-2">
                             {isEditing ? (
@@ -882,7 +885,7 @@ export default function ConfigDataPage() {
                                 onChange={(e) =>
                                   setEditDraft((d: any) => ({ ...d, rollNumber: e.target.value }))
                                 }
-                                className="px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                                className="px-2 py-1 rounded border border-stone-200 bg-white"
                               />
                             ) : (
                               s.rollNumber
@@ -898,7 +901,7 @@ export default function ConfigDataPage() {
                                     sectionId: num(e.target.value),
                                   }))
                                 }
-                                className="px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                                className="px-2 py-1 rounded border border-stone-200 bg-white"
                               >
                                 {sections.map((sec: any) => (
                                   <option key={sec.id} value={sec.id}>
@@ -917,14 +920,14 @@ export default function ConfigDataPage() {
                               {!isEditing && (
                                 <button
                                   onClick={() => startEdit("students", s)}
-                                  className="px-3 py-1.5 rounded border border-stone-200 dark:border-stone-700"
+                                  className="px-3 py-1.5 rounded border border-stone-200"
                                 >
                                   Edit
                                 </button>
                               )}
                               <button
                                 onClick={() => handleDelete("students", s.id)}
-                                className="px-3 py-1.5 rounded border border-red-300 text-red-700 dark:text-red-300 dark:border-red-800"
+                                className="px-3 py-1.5 rounded border border-red-300 text-red-700"
                               >
                                 Delete
                               </button>
@@ -949,16 +952,16 @@ export default function ConfigDataPage() {
           {/* SUBJECTS */}
           {activeTab === "subjects" && (
             <div className="p-4 space-y-4">
-              <div className="rounded-lg border border-stone-200 dark:border-stone-700 p-4">
+              <div className="rounded-lg border border-stone-200 p-4">
                 <div className="font-semibold mb-3">Add Subject</div>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                   <input
                     value={newSubject.name}
                     onChange={(e) => setNewSubject((s) => ({ ...s, name: e.target.value }))}
                     placeholder="Subject name"
-                    className="px-3 py-2 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                    className="px-3 py-2 rounded border border-stone-200 bg-white"
                   />
-                  <label className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-200">
+                  <label className="flex items-center gap-2 text-sm text-stone-700">
                     <input
                       type="checkbox"
                       checked={newSubject.isLab}
@@ -982,7 +985,7 @@ export default function ConfigDataPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-left border-b border-stone-200 dark:border-stone-700">
+                    <tr className="text-left border-b border-stone-200">
                       <th className="px-3 py-2">Name</th>
                       <th className="px-3 py-2">Lab</th>
                       <th className="px-3 py-2 w-40">Actions</th>
@@ -992,7 +995,7 @@ export default function ConfigDataPage() {
                     {subjects.map((s: any) => {
                       const isEditing = editing?.type === "subjects" && editing.id === s.id;
                       return (
-                        <tr key={s.id} className="border-b border-stone-100 dark:border-stone-800">
+                        <tr key={s.id} className="border-b border-stone-100">
                           <td className="px-3 py-2">
                             {isEditing ? (
                               <input
@@ -1000,7 +1003,7 @@ export default function ConfigDataPage() {
                                 onChange={(e) =>
                                   setEditDraft((d: any) => ({ ...d, name: e.target.value }))
                                 }
-                                className="px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                                className="px-2 py-1 rounded border border-stone-200 bg-white"
                               />
                             ) : (
                               s.name
@@ -1026,14 +1029,14 @@ export default function ConfigDataPage() {
                               {!isEditing && (
                                 <button
                                   onClick={() => startEdit("subjects", s)}
-                                  className="px-3 py-1.5 rounded border border-stone-200 dark:border-stone-700"
+                                  className="px-3 py-1.5 rounded border border-stone-200"
                                 >
                                   Edit
                                 </button>
                               )}
                               <button
                                 onClick={() => handleDelete("subjects", s.id)}
-                                className="px-3 py-1.5 rounded border border-red-300 text-red-700 dark:text-red-300 dark:border-red-800"
+                                className="px-3 py-1.5 rounded border border-red-300 text-red-700"
                               >
                                 Delete
                               </button>
@@ -1058,14 +1061,14 @@ export default function ConfigDataPage() {
           {/* COURSES */}
           {activeTab === "courses" && (
             <div className="p-4 space-y-4">
-              <div className="rounded-lg border border-stone-200 dark:border-stone-700 p-4">
+              <div className="rounded-lg border border-stone-200 p-4">
                 <div className="font-semibold mb-3">Add Course</div>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                   <input
                     value={newCourse.name}
                     onChange={(e) => setNewCourse((s) => ({ ...s, name: e.target.value }))}
                     placeholder="Course name (e.g., BTech CSE)"
-                    className="px-3 py-2 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                    className="px-3 py-2 rounded border border-stone-200 bg-white"
                   />
                   <input
                     type="number"
@@ -1074,7 +1077,7 @@ export default function ConfigDataPage() {
                       setNewCourse((s) => ({ ...s, durationYears: num(e.target.value) }))
                     }
                     placeholder="Duration years"
-                    className="px-3 py-2 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                    className="px-3 py-2 rounded border border-stone-200 bg-white"
                   />
                   <div className="text-sm text-stone-500 flex items-center">
                     Department: {departmentName}
@@ -1092,7 +1095,7 @@ export default function ConfigDataPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-left border-b border-stone-200 dark:border-stone-700">
+                    <tr className="text-left border-b border-stone-200">
                       <th className="px-3 py-2">Name</th>
                       <th className="px-3 py-2">Duration</th>
                       <th className="px-3 py-2 w-40">Actions</th>
@@ -1102,7 +1105,7 @@ export default function ConfigDataPage() {
                     {courses.map((c: any) => {
                       const isEditing = editing?.type === "courses" && editing.id === c.id;
                       return (
-                        <tr key={c.id} className="border-b border-stone-100 dark:border-stone-800">
+                        <tr key={c.id} className="border-b border-stone-100">
                           <td className="px-3 py-2">
                             {isEditing ? (
                               <input
@@ -1110,7 +1113,7 @@ export default function ConfigDataPage() {
                                 onChange={(e) =>
                                   setEditDraft((d: any) => ({ ...d, name: e.target.value }))
                                 }
-                                className="px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                                className="px-2 py-1 rounded border border-stone-200 bg-white"
                               />
                             ) : (
                               c.name
@@ -1127,7 +1130,7 @@ export default function ConfigDataPage() {
                                     durationYears: num(e.target.value),
                                   }))
                                 }
-                                className="w-20 px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                                className="w-20 px-2 py-1 rounded border border-stone-200 bg-white"
                               />
                             ) : (
                               `${c.durationYears} years`
@@ -1138,14 +1141,14 @@ export default function ConfigDataPage() {
                               {!isEditing && (
                                 <button
                                   onClick={() => startEdit("courses", c)}
-                                  className="px-3 py-1.5 rounded border border-stone-200 dark:border-stone-700"
+                                  className="px-3 py-1.5 rounded border border-stone-200"
                                 >
                                   Edit
                                 </button>
                               )}
                               <button
                                 onClick={() => handleDelete("courses", c.id)}
-                                className="px-3 py-1.5 rounded border border-red-300 text-red-700 dark:text-red-300 dark:border-red-800"
+                                className="px-3 py-1.5 rounded border border-red-300 text-red-700"
                               >
                                 Delete
                               </button>
@@ -1170,13 +1173,13 @@ export default function ConfigDataPage() {
           {/* SECTIONS */}
           {activeTab === "sections" && (
             <div className="p-4 space-y-4">
-              <div className="rounded-lg border border-stone-200 dark:border-stone-700 p-4">
+              <div className="rounded-lg border border-stone-200 p-4">
                 <div className="font-semibold mb-3">Add Section</div>
                 <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
                   <select
                     value={newSection.courseId}
                     onChange={(e) => setNewSection((s) => ({ ...s, courseId: num(e.target.value) }))}
-                    className="px-3 py-2 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                    className="px-3 py-2 rounded border border-stone-200 bg-white"
                   >
                     {courses.map((c: any) => (
                       <option key={c.id} value={c.id}>
@@ -1187,7 +1190,7 @@ export default function ConfigDataPage() {
                   <select
                     value={newSection.sessionId}
                     onChange={(e) => setNewSection((s) => ({ ...s, sessionId: num(e.target.value) }))}
-                    className="px-3 py-2 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                    className="px-3 py-2 rounded border border-stone-200 bg-white"
                   >
                     {sessions.map((s: any) => (
                       <option key={s.id} value={s.id}>
@@ -1199,21 +1202,21 @@ export default function ConfigDataPage() {
                     value={newSection.name}
                     onChange={(e) => setNewSection((s) => ({ ...s, name: e.target.value }))}
                     placeholder="Name (A/B/C)"
-                    className="px-3 py-2 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                    className="px-3 py-2 rounded border border-stone-200 bg-white"
                   />
                   <input
                     type="number"
                     value={newSection.semester}
                     onChange={(e) => setNewSection((s) => ({ ...s, semester: num(e.target.value) }))}
                     placeholder="Semester"
-                    className="px-3 py-2 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                    className="px-3 py-2 rounded border border-stone-200 bg-white"
                   />
                   <input
                     type="number"
                     value={newSection.batchYear}
                     onChange={(e) => setNewSection((s) => ({ ...s, batchYear: num(e.target.value) }))}
                     placeholder="Batch year"
-                    className="px-3 py-2 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                    className="px-3 py-2 rounded border border-stone-200 bg-white"
                   />
                   <button
                     onClick={handleCreateSection}
@@ -1228,7 +1231,7 @@ export default function ConfigDataPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-left border-b border-stone-200 dark:border-stone-700">
+                    <tr className="text-left border-b border-stone-200">
                       <th className="px-3 py-2">Section</th>
                       <th className="px-3 py-2">Batch</th>
                       <th className="px-3 py-2 w-40">Actions</th>
@@ -1238,7 +1241,7 @@ export default function ConfigDataPage() {
                     {sections.map((sec: any) => {
                       const isEditing = editing?.type === "sections" && editing.id === sec.id;
                       return (
-                        <tr key={sec.id} className="border-b border-stone-100 dark:border-stone-800">
+                        <tr key={sec.id} className="border-b border-stone-100">
                           <td className="px-3 py-2">
                             {isEditing ? (
                               <div className="flex flex-wrap gap-2 items-center">
@@ -1250,7 +1253,7 @@ export default function ConfigDataPage() {
                                       courseId: num(e.target.value),
                                     }))
                                   }
-                                  className="px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                                  className="px-2 py-1 rounded border border-stone-200 bg-white"
                                 >
                                   {courses.map((c: any) => (
                                     <option key={c.id} value={c.id}>
@@ -1263,7 +1266,7 @@ export default function ConfigDataPage() {
                                   onChange={(e) =>
                                     setEditDraft((d: any) => ({ ...d, name: e.target.value }))
                                   }
-                                  className="w-16 px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                                  className="w-16 px-2 py-1 rounded border border-stone-200 bg-white"
                                 />
                                 <input
                                   type="number"
@@ -1274,7 +1277,7 @@ export default function ConfigDataPage() {
                                       semester: num(e.target.value),
                                     }))
                                   }
-                                  className="w-20 px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                                  className="w-20 px-2 py-1 rounded border border-stone-200 bg-white"
                                 />
                                 <select
                                   value={editDraft.sessionId ?? 0}
@@ -1284,7 +1287,7 @@ export default function ConfigDataPage() {
                                       sessionId: num(e.target.value),
                                     }))
                                   }
-                                  className="px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                                  className="px-2 py-1 rounded border border-stone-200 bg-white"
                                 >
                                   {sessions.map((s: any) => (
                                     <option key={s.id} value={s.id}>
@@ -1308,7 +1311,7 @@ export default function ConfigDataPage() {
                                     batchYear: num(e.target.value),
                                   }))
                                 }
-                                className="w-28 px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                                className="w-28 px-2 py-1 rounded border border-stone-200 bg-white"
                               />
                             ) : (
                               sec.batchYear
@@ -1319,14 +1322,14 @@ export default function ConfigDataPage() {
                               {!isEditing && (
                                 <button
                                   onClick={() => startEdit("sections", sec)}
-                                  className="px-3 py-1.5 rounded border border-stone-200 dark:border-stone-700"
+                                  className="px-3 py-1.5 rounded border border-stone-200"
                                 >
                                   Edit
                                 </button>
                               )}
                               <button
                                 onClick={() => handleDelete("sections", sec.id)}
-                                className="px-3 py-1.5 rounded border border-red-300 text-red-700 dark:text-red-300 dark:border-red-800"
+                                className="px-3 py-1.5 rounded border border-red-300 text-red-700"
                               >
                                 Delete
                               </button>
@@ -1351,19 +1354,19 @@ export default function ConfigDataPage() {
           {/* ROOMS */}
           {activeTab === "rooms" && (
             <div className="p-4 space-y-4">
-              <div className="rounded-lg border border-stone-200 dark:border-stone-700 p-4">
+              <div className="rounded-lg border border-stone-200 p-4">
                 <div className="font-semibold mb-3">Add Room</div>
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
                   <input
                     value={newRoom.name}
                     onChange={(e) => setNewRoom((s) => ({ ...s, name: e.target.value }))}
                     placeholder="Room name"
-                    className="px-3 py-2 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                    className="px-3 py-2 rounded border border-stone-200 bg-white"
                   />
                   <select
                     value={newRoom.roomType}
                     onChange={(e) => setNewRoom((s) => ({ ...s, roomType: e.target.value }))}
-                    className="px-3 py-2 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                    className="px-3 py-2 rounded border border-stone-200 bg-white"
                   >
                     <option value="CLASSROOM">CLASSROOM</option>
                     <option value="LAB">LAB</option>
@@ -1373,7 +1376,7 @@ export default function ConfigDataPage() {
                     value={newRoom.capacity}
                     onChange={(e) => setNewRoom((s) => ({ ...s, capacity: num(e.target.value) }))}
                     placeholder="Capacity"
-                    className="px-3 py-2 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                    className="px-3 py-2 rounded border border-stone-200 bg-white"
                   />
                   <div className="text-sm text-stone-500 flex items-center">
                     Department: {departmentName}
@@ -1391,7 +1394,7 @@ export default function ConfigDataPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-left border-b border-stone-200 dark:border-stone-700">
+                    <tr className="text-left border-b border-stone-200">
                       <th className="px-3 py-2">Name</th>
                       <th className="px-3 py-2">Type</th>
                       <th className="px-3 py-2">Capacity</th>
@@ -1402,7 +1405,7 @@ export default function ConfigDataPage() {
                     {rooms.map((r: any) => {
                       const isEditing = editing?.type === "rooms" && editing.id === r.id;
                       return (
-                        <tr key={r.id} className="border-b border-stone-100 dark:border-stone-800">
+                        <tr key={r.id} className="border-b border-stone-100">
                           <td className="px-3 py-2">
                             {isEditing ? (
                               <input
@@ -1410,7 +1413,7 @@ export default function ConfigDataPage() {
                                 onChange={(e) =>
                                   setEditDraft((d: any) => ({ ...d, name: e.target.value }))
                                 }
-                                className="px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                                className="px-2 py-1 rounded border border-stone-200 bg-white"
                               />
                             ) : (
                               r.name
@@ -1423,7 +1426,7 @@ export default function ConfigDataPage() {
                                 onChange={(e) =>
                                   setEditDraft((d: any) => ({ ...d, roomType: e.target.value }))
                                 }
-                                className="px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                                className="px-2 py-1 rounded border border-stone-200 bg-white"
                               >
                                 <option value="CLASSROOM">CLASSROOM</option>
                                 <option value="LAB">LAB</option>
@@ -1443,7 +1446,7 @@ export default function ConfigDataPage() {
                                     capacity: num(e.target.value),
                                   }))
                                 }
-                                className="w-24 px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                                className="w-24 px-2 py-1 rounded border border-stone-200 bg-white"
                               />
                             ) : (
                               r.capacity
@@ -1454,14 +1457,14 @@ export default function ConfigDataPage() {
                               {!isEditing && (
                                 <button
                                   onClick={() => startEdit("rooms", r)}
-                                  className="px-3 py-1.5 rounded border border-stone-200 dark:border-stone-700"
+                                  className="px-3 py-1.5 rounded border border-stone-200"
                                 >
                                   Edit
                                 </button>
                               )}
                               <button
                                 onClick={() => handleDelete("rooms", r.id)}
-                                className="px-3 py-1.5 rounded border border-red-300 text-red-700 dark:text-red-300 dark:border-red-800"
+                                className="px-3 py-1.5 rounded border border-red-300 text-red-700"
                               >
                                 Delete
                               </button>
@@ -1493,7 +1496,7 @@ export default function ConfigDataPage() {
                 {days.map((d: any) => (
                   <div
                     key={d.id}
-                    className="rounded-lg border border-stone-200 dark:border-stone-700 px-3 py-2 bg-stone-50 dark:bg-stone-950"
+                    className="rounded-lg border border-stone-200 px-3 py-2 bg-stone-50"
                   >
                     <div className="font-semibold">{d.name}</div>
                     <div className="text-xs text-stone-500">ID: {d.id}</div>
@@ -1509,27 +1512,27 @@ export default function ConfigDataPage() {
           {/* SLOTS */}
           {activeTab === "slots" && (
             <div className="p-4 space-y-4">
-              <div className="rounded-lg border border-stone-200 dark:border-stone-700 p-4">
+              <div className="rounded-lg border border-stone-200 p-4">
                 <div className="font-semibold mb-3">Add Slot</div>
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
                   <input
                     value={newSlot.startTime}
                     onChange={(e) => setNewSlot((s) => ({ ...s, startTime: e.target.value }))}
                     placeholder="Start (HH:MM)"
-                    className="px-3 py-2 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                    className="px-3 py-2 rounded border border-stone-200 bg-white"
                   />
                   <input
                     value={newSlot.endTime}
                     onChange={(e) => setNewSlot((s) => ({ ...s, endTime: e.target.value }))}
                     placeholder="End (HH:MM)"
-                    className="px-3 py-2 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                    className="px-3 py-2 rounded border border-stone-200 bg-white"
                   />
                   <input
                     type="number"
                     value={newSlot.slotNumber}
                     onChange={(e) => setNewSlot((s) => ({ ...s, slotNumber: num(e.target.value) }))}
                     placeholder="Slot #"
-                    className="px-3 py-2 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                    className="px-3 py-2 rounded border border-stone-200 bg-white"
                   />
                   <div className="text-sm text-stone-500 flex items-center">
                     Format: 24h `HH:MM`
@@ -1547,7 +1550,7 @@ export default function ConfigDataPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-left border-b border-stone-200 dark:border-stone-700">
+                    <tr className="text-left border-b border-stone-200">
                       <th className="px-3 py-2">Slot #</th>
                       <th className="px-3 py-2">Start</th>
                       <th className="px-3 py-2">End</th>
@@ -1558,7 +1561,7 @@ export default function ConfigDataPage() {
                     {slots.map((sl: any) => {
                       const isEditing = editing?.type === "slots" && editing.id === sl.id;
                       return (
-                        <tr key={sl.id} className="border-b border-stone-100 dark:border-stone-800">
+                        <tr key={sl.id} className="border-b border-stone-100">
                           <td className="px-3 py-2">
                             {isEditing ? (
                               <input
@@ -1570,7 +1573,7 @@ export default function ConfigDataPage() {
                                     slotNumber: num(e.target.value),
                                   }))
                                 }
-                                className="w-24 px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                                className="w-24 px-2 py-1 rounded border border-stone-200 bg-white"
                               />
                             ) : (
                               sl.slotNumber
@@ -1583,7 +1586,7 @@ export default function ConfigDataPage() {
                                 onChange={(e) =>
                                   setEditDraft((d: any) => ({ ...d, startTime: e.target.value }))
                                 }
-                                className="w-24 px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                                className="w-24 px-2 py-1 rounded border border-stone-200 bg-white"
                               />
                             ) : (
                               sl.startTime
@@ -1596,7 +1599,7 @@ export default function ConfigDataPage() {
                                 onChange={(e) =>
                                   setEditDraft((d: any) => ({ ...d, endTime: e.target.value }))
                                 }
-                                className="w-24 px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                                className="w-24 px-2 py-1 rounded border border-stone-200 bg-white"
                               />
                             ) : (
                               sl.endTime
@@ -1607,14 +1610,14 @@ export default function ConfigDataPage() {
                               {!isEditing && (
                                 <button
                                   onClick={() => startEdit("slots", sl)}
-                                  className="px-3 py-1.5 rounded border border-stone-200 dark:border-stone-700"
+                                  className="px-3 py-1.5 rounded border border-stone-200"
                                 >
                                   Edit
                                 </button>
                               )}
                               <button
                                 onClick={() => handleDelete("slots", sl.id)}
-                                className="px-3 py-1.5 rounded border border-red-300 text-red-700 dark:text-red-300 dark:border-red-800"
+                                className="px-3 py-1.5 rounded border border-red-300 text-red-700"
                               >
                                 Delete
                               </button>
@@ -1639,7 +1642,7 @@ export default function ConfigDataPage() {
           {/* COURSE-SUBJECT */}
           {activeTab === "courseSubject" && (
             <div className="p-4 space-y-4">
-              <div className="rounded-lg border border-stone-200 dark:border-stone-700 p-4">
+              <div className="rounded-lg border border-stone-200 p-4">
                 <div className="font-semibold mb-3">Map Course ↔ Subject</div>
                 <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
                   <select
@@ -1647,7 +1650,7 @@ export default function ConfigDataPage() {
                     onChange={(e) =>
                       setNewCourseSubject((s) => ({ ...s, courseId: num(e.target.value) }))
                     }
-                    className="px-3 py-2 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                    className="px-3 py-2 rounded border border-stone-200 bg-white"
                   >
                     {courses.map((c: any) => (
                       <option key={c.id} value={c.id}>
@@ -1660,7 +1663,7 @@ export default function ConfigDataPage() {
                     onChange={(e) =>
                       setNewCourseSubject((s) => ({ ...s, subjectId: num(e.target.value) }))
                     }
-                    className="px-3 py-2 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                    className="px-3 py-2 rounded border border-stone-200 bg-white"
                   >
                     {subjects.map((s: any) => (
                       <option key={s.id} value={s.id}>
@@ -1675,7 +1678,7 @@ export default function ConfigDataPage() {
                       setNewCourseSubject((s) => ({ ...s, semester: num(e.target.value) }))
                     }
                     placeholder="Semester"
-                    className="px-3 py-2 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                    className="px-3 py-2 rounded border border-stone-200 bg-white"
                   />
                   <input
                     type="number"
@@ -1687,7 +1690,7 @@ export default function ConfigDataPage() {
                       }))
                     }
                     placeholder="Lectures/week"
-                    className="px-3 py-2 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                    className="px-3 py-2 rounded border border-stone-200 bg-white"
                   />
                   <label className="flex items-center gap-2 text-sm">
                     <input
@@ -1715,7 +1718,7 @@ export default function ConfigDataPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-left border-b border-stone-200 dark:border-stone-700">
+                    <tr className="text-left border-b border-stone-200">
                       <th className="px-3 py-2">Course</th>
                       <th className="px-3 py-2">Subject</th>
                       <th className="px-3 py-2">Sem</th>
@@ -1726,7 +1729,7 @@ export default function ConfigDataPage() {
                   </thead>
                   <tbody>
                     {courseSubjects.map((x: any) => (
-                      <tr key={x.id} className="border-b border-stone-100 dark:border-stone-800">
+                      <tr key={x.id} className="border-b border-stone-100">
                         <td className="px-3 py-2">{x.course?.name ?? courseById.get(x.courseId)?.name ?? `#${x.courseId}`}</td>
                         <td className="px-3 py-2">{x.subject?.name ?? subjectById.get(x.subjectId)?.name ?? `#${x.subjectId}`}</td>
                         <td className="px-3 py-2">{x.semester}</td>
@@ -1735,7 +1738,7 @@ export default function ConfigDataPage() {
                         <td className="px-3 py-2">
                           <button
                             onClick={() => handleDelete("courseSubject", x.id)}
-                            className="px-3 py-1.5 rounded border border-red-300 text-red-700 dark:text-red-300 dark:border-red-800"
+                            className="px-3 py-1.5 rounded border border-red-300 text-red-700"
                           >
                             Delete
                           </button>
@@ -1758,7 +1761,7 @@ export default function ConfigDataPage() {
           {/* FACULTY-SUBJECT */}
           {activeTab === "facultySubject" && (
             <div className="p-4 space-y-4">
-              <div className="rounded-lg border border-stone-200 dark:border-stone-700 p-4">
+              <div className="rounded-lg border border-stone-200 p-4">
                 <div className="font-semibold mb-3">Map Faculty ↔ Subject (per Course)</div>
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
                   <select
@@ -1766,7 +1769,7 @@ export default function ConfigDataPage() {
                     onChange={(e) =>
                       setNewFacultySubject((s) => ({ ...s, facultyId: num(e.target.value) }))
                     }
-                    className="px-3 py-2 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                    className="px-3 py-2 rounded border border-stone-200 bg-white"
                   >
                     {faculty.map((f: any) => (
                       <option key={f.id} value={f.id}>
@@ -1779,7 +1782,7 @@ export default function ConfigDataPage() {
                     onChange={(e) =>
                       setNewFacultySubject((s) => ({ ...s, courseId: num(e.target.value) }))
                     }
-                    className="px-3 py-2 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                    className="px-3 py-2 rounded border border-stone-200 bg-white"
                   >
                     {courses.map((c: any) => (
                       <option key={c.id} value={c.id}>
@@ -1792,7 +1795,7 @@ export default function ConfigDataPage() {
                     onChange={(e) =>
                       setNewFacultySubject((s) => ({ ...s, subjectId: num(e.target.value) }))
                     }
-                    className="px-3 py-2 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                    className="px-3 py-2 rounded border border-stone-200 bg-white"
                   >
                     {subjects.map((s: any) => (
                       <option key={s.id} value={s.id}>
@@ -1816,7 +1819,7 @@ export default function ConfigDataPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-left border-b border-stone-200 dark:border-stone-700">
+                    <tr className="text-left border-b border-stone-200">
                       <th className="px-3 py-2">Faculty</th>
                       <th className="px-3 py-2">Course</th>
                       <th className="px-3 py-2">Subject</th>
@@ -1825,14 +1828,14 @@ export default function ConfigDataPage() {
                   </thead>
                   <tbody>
                     {facultySubjects.map((x: any) => (
-                      <tr key={x.id} className="border-b border-stone-100 dark:border-stone-800">
+                      <tr key={x.id} className="border-b border-stone-100">
                         <td className="px-3 py-2">{x.faculty?.user?.name ?? `Faculty #${x.facultyId}`}</td>
                         <td className="px-3 py-2">{x.course?.name ?? courseById.get(x.courseId)?.name ?? `#${x.courseId}`}</td>
                         <td className="px-3 py-2">{x.subject?.name ?? subjectById.get(x.subjectId)?.name ?? `#${x.subjectId}`}</td>
                         <td className="px-3 py-2">
                           <button
                             onClick={() => handleDelete("facultySubject", x.id)}
-                            className="px-3 py-1.5 rounded border border-red-300 text-red-700 dark:text-red-300 dark:border-red-800"
+                            className="px-3 py-1.5 rounded border border-red-300 text-red-700"
                           >
                             Delete
                           </button>

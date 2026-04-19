@@ -228,12 +228,12 @@ export default function SectionTimetablePage() {
   };
 
   return (
-    <div className="min-h-screen bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100">
-      <header className="sticky top-0 z-10 border-b border-stone-200 dark:border-stone-800 bg-white/95 dark:bg-stone-900/95 backdrop-blur">
+    <div className="min-h-screen bg-stone-50 text-stone-900">
+      <header className="sticky top-0 z-10 border-b border-stone-200 bg-white/95 backdrop-blur">
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 flex flex-wrap items-center justify-between gap-4">
           <Link
             href="/"
-            className="text-stone-500 hover:text-stone-900 dark:hover:text-stone-300 text-sm font-medium"
+            className="text-stone-500 hover:text-stone-900 text-sm font-medium"
           >
             ← Back
           </Link>
@@ -242,7 +242,7 @@ export default function SectionTimetablePage() {
           </h1>
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-stone-600 dark:text-stone-400 whitespace-nowrap">
+              <span className="text-sm font-medium text-stone-600 whitespace-nowrap">
                 Department
               </span>
               <div className="relative min-w-[160px]" ref={deptRef}>
@@ -259,10 +259,10 @@ export default function SectionTimetablePage() {
                   }}
                   onFocus={() => setDeptOpen(true)}
                   placeholder="Search department..."
-                  className="w-full rounded-lg border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 placeholder:text-stone-400"
+                  className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 placeholder:text-stone-400"
                 />
                 {deptOpen && (
-                  <ul className="absolute top-full left-0 right-0 mt-1 max-h-52 overflow-auto rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 shadow-lg z-20 py-1">
+                  <ul className="absolute top-full left-0 right-0 mt-1 max-h-52 overflow-auto rounded-lg border border-stone-200 bg-white shadow-lg z-20 py-1">
                     {deptOptions.length === 0 ? (
                       <li className="px-3 py-2 text-sm text-stone-500">
                         No departments match
@@ -273,9 +273,9 @@ export default function SectionTimetablePage() {
                           <button
                             type="button"
                             onClick={() => setDepartment(String(d.id))}
-                            className={`w-full px-3 py-2 text-left text-sm hover:bg-stone-100 dark:hover:bg-stone-700 ${
+                            className={`w-full px-3 py-2 text-left text-sm hover:bg-stone-100 ${
                               String(d.id) === departmentId
-                                ? "bg-amber-50 dark:bg-amber-950/50 font-medium"
+                                ? "bg-amber-50 font-medium"
                                 : ""
                             }`}
                           >
@@ -289,7 +289,7 @@ export default function SectionTimetablePage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-stone-600 dark:text-stone-400 whitespace-nowrap">
+              <span className="text-sm font-medium text-stone-600 whitespace-nowrap">
                 Course
               </span>
               <div className="relative min-w-[160px]" ref={courseRef}>
@@ -307,10 +307,10 @@ export default function SectionTimetablePage() {
                     departmentId ? "Search course..." : "Select department first"
                   }
                   disabled={!departmentId}
-                  className="w-full rounded-lg border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 placeholder:text-stone-400 disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 placeholder:text-stone-400 disabled:opacity-60 disabled:cursor-not-allowed"
                 />
                 {courseOpen && departmentId && (
-                  <ul className="absolute top-full left-0 right-0 mt-1 max-h-52 overflow-auto rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 shadow-lg z-20 py-1">
+                  <ul className="absolute top-full left-0 right-0 mt-1 max-h-52 overflow-auto rounded-lg border border-stone-200 bg-white shadow-lg z-20 py-1">
                     {courseOptions.length === 0 ? (
                       <li className="px-3 py-2 text-sm text-stone-500">
                         No courses match
@@ -321,9 +321,9 @@ export default function SectionTimetablePage() {
                           <button
                             type="button"
                             onClick={() => setCourse(String(c.id))}
-                            className={`w-full px-3 py-2 text-left text-sm hover:bg-stone-100 dark:hover:bg-stone-700 ${
+                            className={`w-full px-3 py-2 text-left text-sm hover:bg-stone-100 ${
                               String(c.id) === courseId
-                                ? "bg-amber-50 dark:bg-amber-950/50 font-medium"
+                                ? "bg-amber-50 font-medium"
                                 : ""
                             }`}
                           >
@@ -337,7 +337,7 @@ export default function SectionTimetablePage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-stone-600 dark:text-stone-400 whitespace-nowrap">
+              <span className="text-sm font-medium text-stone-600 whitespace-nowrap">
                 Section
               </span>
               <div className="relative min-w-[220px]" ref={sectionRef}>
@@ -359,10 +359,10 @@ export default function SectionTimetablePage() {
                     courseId ? "Search section..." : "Select course first"
                   }
                   disabled={!courseId}
-                  className="w-full rounded-lg border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 placeholder:text-stone-400 disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 placeholder:text-stone-400 disabled:opacity-60 disabled:cursor-not-allowed"
                 />
                 {sectionOpen && courseId && (
-                  <ul className="absolute top-full left-0 right-0 mt-1 max-h-60 overflow-auto rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 shadow-lg z-20 py-1">
+                  <ul className="absolute top-full left-0 right-0 mt-1 max-h-60 overflow-auto rounded-lg border border-stone-200 bg-white shadow-lg z-20 py-1">
                     {sectionOptions.length === 0 ? (
                       <li className="px-3 py-2 text-sm text-stone-500">
                         No sections match
@@ -373,9 +373,9 @@ export default function SectionTimetablePage() {
                           <button
                             type="button"
                             onClick={() => setSection(String(s.id))}
-                            className={`w-full px-3 py-2 text-left text-sm hover:bg-stone-100 dark:hover:bg-stone-700 ${
+                            className={`w-full px-3 py-2 text-left text-sm hover:bg-stone-100 ${
                               String(s.id) === sectionId
-                                ? "bg-amber-50 dark:bg-amber-950/50 font-medium"
+                                ? "bg-amber-50 font-medium"
                                 : ""
                             }`}
                           >
@@ -394,7 +394,7 @@ export default function SectionTimetablePage() {
 
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
         {error && (
-          <div className="rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 text-red-800 dark:text-red-200 px-4 py-3 text-sm">
+          <div className="rounded-lg bg-red-50 border border-red-200 text-red-800 px-4 py-3 text-sm">
             {error}
           </div>
         )}
@@ -406,23 +406,23 @@ export default function SectionTimetablePage() {
         )}
 
         {sectionId && !loading && entries && entries.length === 0 && (
-          <div className="rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 p-8 text-center text-stone-500 dark:text-stone-400">
+          <div className="rounded-lg border border-stone-200 bg-white p-8 text-center text-stone-500">
             No timetable entries for this section yet.
           </div>
         )}
 
         {grid && (
-          <div className="overflow-x-auto rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 shadow-sm">
+          <div className="overflow-x-auto rounded-xl border border-stone-200 bg-white shadow-sm">
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr>
-                  <th className="w-24 min-w-24 border-b border-r border-stone-200 dark:border-stone-700 bg-stone-100 dark:bg-stone-800/80 px-3 py-3 text-left font-semibold text-stone-700 dark:text-stone-300">
+                  <th className="w-24 min-w-24 border-b border-r border-stone-200 bg-stone-100 px-3 py-3 text-left font-semibold text-stone-700">
                     Day
                   </th>
                   {grid.slotDetails.map((slot) => (
                     <th
                       key={slot.id}
-                      className="min-w-28 border-b border-r last:border-r-0 border-stone-200 dark:border-stone-700 bg-stone-100 dark:bg-stone-800/80 px-3 py-3 text-center font-semibold text-stone-700 dark:text-stone-300 whitespace-nowrap"
+                      className="min-w-28 border-b border-r last:border-r-0 border-stone-200 bg-stone-100 px-3 py-3 text-center font-semibold text-stone-700 whitespace-nowrap"
                     >
                       {formatTime(slot.startTime)} – {formatTime(slot.endTime)}
                     </th>
@@ -434,17 +434,17 @@ export default function SectionTimetablePage() {
                   const cells = getCellsForDay(d.id, grid.slotIds, grid.byDay);
                   return (
                     <tr key={d.id}>
-                      <td className="border-b border-r border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800/50 px-3 py-2 font-medium text-stone-600 dark:text-stone-400 capitalize">
+                      <td className="border-b border-r border-stone-200 bg-stone-50 px-3 py-2 font-medium text-stone-600 capitalize">
                         {d.name.slice(0, 3)}
                       </td>
                       {cells.map((cell, cellIdx) => (
                         <td
                           key={cellIdx}
                           colSpan={cell.colSpan}
-                          className="border-b border-r last:border-r-0 border-stone-200 dark:border-stone-700 p-2 align-top min-h-16"
+                          className="border-b border-r last:border-r-0 border-stone-200 p-2 align-top min-h-16"
                         >
                           {cell.entries.length === 0 ? (
-                            <span className="block py-4 text-stone-400 dark:text-stone-500 text-center text-xs">
+                            <span className="block py-4 text-stone-400 text-center text-xs">
                               —
                             </span>
                           ) : (
@@ -458,9 +458,9 @@ export default function SectionTimetablePage() {
                                 .map((e) => (
                                   <div
                                     key={e.id}
-                                    className="rounded-lg border border-stone-300 dark:border-stone-600 bg-stone-100 dark:bg-stone-800/80 p-2"
+                                    className="rounded-lg border border-stone-300 bg-stone-100 p-2"
                                   >
-                                    <div className="font-semibold text-stone-800 dark:text-stone-200">
+                                    <div className="font-semibold text-stone-800">
                                       {e.subject.name}
                                       {e.subject.isLab && (
                                         <span className="ml-1 text-xs font-normal text-stone-500">
@@ -468,10 +468,10 @@ export default function SectionTimetablePage() {
                                         </span>
                                       )}
                                     </div>
-                                    <div className="text-xs text-stone-600 dark:text-stone-400">
+                                    <div className="text-xs text-stone-600">
                                       {e.faculty.user.name}
                                     </div>
-                                    <div className="text-xs text-stone-500 dark:text-stone-500">
+                                    <div className="text-xs text-stone-500">
                                       {e.room.name}
                                     </div>
                                   </div>

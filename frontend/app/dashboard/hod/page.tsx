@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from "react";
+import { API_BASE } from "@/lib/apiBase";
 
 type Department = {
   id: number;
@@ -21,7 +22,7 @@ function HodDashboard() {
       try {
         // Replace URL with your backend department info endpoint
         const token = localStorage.getItem('token');
-        const res = await fetch("http://localhost:3000/department/info", {
+        const res = await fetch(`${API_BASE}/department/info`, {
           headers: token
             ? { Authorization: `Bearer ${token}` }
             : {}

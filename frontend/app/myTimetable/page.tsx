@@ -4,8 +4,15 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { API_BASE } from "@/lib/apiBase";
 
 type TimetableEntry = any;
+type SlotType = {
+  id: number;
+  slotNumber: number;
+  startTime: string;
+  endTime: string;
+};
 
 const DAY_ORDER = [
   "MONDAY",
@@ -14,18 +21,6 @@ const DAY_ORDER = [
   "THURSDAY",
   "FRIDAY",
 ];
-
-// --- SLOT TEMPLATE: always show these! (each slot is 1 hour) ---
-const SLOT_TEMPLATE = [
-  { slotNumber: 1, startTime: "09:00", endTime: "10:00" },
-  { slotNumber: 2, startTime: "10:00", endTime: "11:00" },
-  { slotNumber: 3, startTime: "11:00", endTime: "12:00" },
-  { slotNumber: 4, startTime: "12:00", endTime: "13:00" },
-  { slotNumber: 5, startTime: "13:00", endTime: "14:00" },
-  { slotNumber: 6, startTime: "14:00", endTime: "15:00" },
-  { slotNumber: 7, startTime: "15:00", endTime: "16:00" },
-];
-// ---
 
 type UserData = {
   userId: number;
@@ -61,9 +56,8 @@ function formatTime(s: string) {
   return `${h12}:${m.toString().padStart(2, "0")} ${am ? "AM" : "PM"}`;
 }
 
-// Build grid such that labs take up 2 consecutive slots (colSpan=2)
-// Assumes: If an entry isLab, it occupies its own slot and the next slot, merging columns.
-function buildGrid(entries: TimetableEntry[]) {
+// buildGrid now takes slots from DB instead of SLOT_TEMPLATE
+function buildGrid(entries: TimetableEntry[], slotsFromDb: SlotType[]) {
   const uniqueDaysMap = new Map<string, number>();
   entries.forEach((e: any) => {
     if (!uniqueDaysMap.has(e.day.name)) uniqueDaysMap.set(e.day.name, e.day.id);
@@ -76,15 +70,17 @@ function buildGrid(entries: TimetableEntry[]) {
       : { id: -1000 - idx, name: dayName }
   );
 
-  // Always use slot template
-  const slotDetails = SLOT_TEMPLATE.map((slot) => ({
-    id: slot.slotNumber,
-    startTime: slot.startTime,
-    endTime: slot.endTime,
-    slotNumber: slot.slotNumber,
-  }));
+  // Use slots from database!
+  const slotDetails = slotsFromDb
+    .map(slot => ({
+      id: slot.slotNumber,
+      slotNumber: slot.slotNumber,
+      startTime: slot.startTime,
+      endTime: slot.endTime
+    }))
+    .sort((a, b) => a.slotNumber - b.slotNumber);
 
-  const slotIds = SLOT_TEMPLATE.map((slot) => slot.slotNumber);
+  const slotIds = slotDetails.map(slot => slot.slotNumber);
 
   // Map (dayId:slotNumber) to entries[]
   const cellMap = new Map<string, TimetableEntry[]>();
@@ -107,8 +103,7 @@ function buildGrid(entries: TimetableEntry[]) {
   };
 }
 
-// Return an array of slots for rendering row for a given day
-// If lab is found at a slot, it spans 2 cells and marks next as skipped
+// as before
 function getCellsForDay(dayId: number, slotIds: number[], cellMap: Map<string, TimetableEntry[]>) {
   const result: any[] = [];
   let skip = 0;
@@ -135,15 +130,46 @@ function getCellsForDay(dayId: number, slotIds: number[], cellMap: Map<string, T
   return result;
 }
 
+// LoadingAnimation component
+function LoadingAnimation() {
+  // Tailwind CSS spinner
+  return (
+    <div className="flex flex-col items-center justify-center p-8">
+      <svg
+        className="animate-spin h-10 w-10 text-blue-500 mb-2"
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+      >
+        <circle
+          className="opacity-25"
+          cx="12"
+          cy="12"
+          r="10"
+          stroke="currentColor"
+          strokeWidth="4"
+        ></circle>
+        <path
+          className="opacity-75"
+          fill="currentColor"
+          d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+        ></path>
+      </svg>
+      <span className="text-blue-700 font-semibold text-lg">Loading...</span>
+    </div>
+  );
+}
+
 export default function MyTimetablePage() {
   const router = useRouter();
 
   const [entries, setEntries] = useState<TimetableEntry[]>([]);
+  const [slots, setSlots] = useState<SlotType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchTimetable() {
+    async function fetchTimetableAndSlots() {
       setLoading(true);
       setError(null);
 
@@ -163,8 +189,9 @@ export default function MyTimetablePage() {
       }
 
       try {
+        // Get user (to get section id)
         const res = await fetch(
-          `http://localhost:3000/users/${user.userId}`,
+          `${API_BASE}/users/${user.userId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -174,17 +201,25 @@ export default function MyTimetablePage() {
 
         const data = await res.json();
 
+        // Get slots from DB!
+        const slotRes = await fetch(`${API_BASE}/time-slots`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const slotData = await slotRes.json();
+        setSlots(slotData);
+
+        // Get timetable for student's section
         const res2 = await fetch(
-          `http://localhost:3000/timetables/section/${data.student.sectionId}`,
+          `${API_BASE}/timetables/section/${data.student.sectionId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
             },
           }
         );
-
         const timetableData = await res2.json();
-
         setEntries(timetableData);
       } catch (err: any) {
         setError(err.message || "Error fetching timetable.");
@@ -193,28 +228,42 @@ export default function MyTimetablePage() {
       }
     }
 
-    fetchTimetable();
+    fetchTimetableAndSlots();
   }, [router]);
 
-  if (loading) return <div className="p-6 bg-white text-black">Loading...</div>;
+  if (loading)
+    return (
+      <div className="p-6 bg-white text-black flex items-center justify-center min-h-60">
+        <LoadingAnimation />
+      </div>
+    );
   if (error) return <div className="p-6 text-red-500 bg-white text-black">{error}</div>;
   if (!entries.length) return <div className="p-6 bg-white text-black">No timetable</div>;
+  if (!slots.length) return <div className="p-6 bg-white text-black">No slots defined</div>;
 
-  const grid = buildGrid(entries);
+  const grid = buildGrid(entries, slots);
 
   return (
     <div className="p-6 bg-white text-black">
-      <h1 className="text-xl font-semibold mb-4">My Timetable</h1>
+      <div className="flex flex-col items-center justify-center mb-6">
+        <div className="flex items-center gap-3">
+          <svg className="h-8 w-8 text-blue-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3" y="7" width="18" height="13" rx="2" stroke="currentColor" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M16 3v4M8 3v4M3 11h18" />
+          </svg>
+          <h1 className="text-2xl font-bold tracking-wide text-blue-800 drop-shadow-sm text-center">My Timetable</h1>
+        </div>
+      </div>
+ 
 
-      <div className="overflow-x-auto rounded-xl border border-stone-200 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-xl border border-stone-200 bg-white shadow-sm mx-2 md:mx-6">
         <table className="w-full border-collapse text-sm bg-white text-black">
           <thead>
             <tr>
               <th className="w-24 border-b border-r px-3 py-3 text-left bg-gray-50 text-black">
                 Day
               </th>
-
-              {/* Render slot headers - need to skip columns when labs are present. So, use slotDetails but don't skip header cells. */}
+              {/* Render slot headers dynamically from slot details fetched from DB */}
               {grid.slotDetails.map((slot: any) => (
                 <th
                   key={slot.id}
@@ -234,7 +283,6 @@ export default function MyTimetablePage() {
                 grid.slotIds,
                 grid.cellMap
               );
-              // calculate how many logical slots are rendered (should total slotIds.length)
               let slotIndex = 0;
               return (
                 <tr key={d.id}>
@@ -243,7 +291,6 @@ export default function MyTimetablePage() {
                   </td>
 
                   {cells.map((cell: any, i: number) => {
-                    // If this cell is a lab, increase slotIndex by 2; else by 1
                     const cellKey = `${d.id}-slot-${slotIndex}`;
                     slotIndex += cell.colSpan;
                     return (

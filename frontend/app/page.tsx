@@ -15,6 +15,7 @@ export default async function Home() {
   
   const cookieStore = await cookies(); // ✅ FIX
   const token = cookieStore.get('token')?.value;
+  if(!token){redirect('/login')}
   const userrole = getUserRoleFromToken(token)
   if (userrole == 3) {
     redirect('/dashboard/student');

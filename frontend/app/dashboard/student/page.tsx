@@ -2,6 +2,36 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { API_BASE } from "@/lib/apiBase";
+
+// Circular Loading Spinner Component
+function LoadingSpinner() {
+  // SVG-based spinner for a smooth circular effect
+  return (
+    <div className="flex items-center justify-center">
+      <svg
+        className="animate-spin h-14 w-14 text-blue-500"
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 48 48"
+      >
+        <circle
+          className="opacity-20"
+          cx="24"
+          cy="24"
+          r="20"
+          stroke="currentColor"
+          strokeWidth="6"
+        />
+        <path
+          className="opacity-70"
+          fill="currentColor"
+          d="M44 24c0-11.046-8.954-20-20-20v6c7.732 0 14 6.268 14 14h6z"
+        />
+      </svg>
+    </div>
+  );
+}
 
 type TimetableEntry = {
   id: number;
@@ -127,7 +157,7 @@ async function fetchTimetable(sectionId: number): Promise<TimetableEntry[]> {
   const token =
     typeof window !== "undefined" ? localStorage.getItem("token") : null;
   const res = await fetch(
-    `http://localhost:3000/timetables/section/${sectionId}`,
+    `${API_BASE}/timetables/section/${sectionId}`,
     {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     }
@@ -259,7 +289,7 @@ function StudentDashboard() {
       if (u && u.userId) {
         try {
           const res = await fetch(
-            `http://localhost:3000/students/user/${u.userId}`,
+            `${API_BASE}/students/user/${u.userId}`,
             {
               credentials: "include",
               headers: { "Content-Type": "application/json" },
@@ -284,7 +314,10 @@ function StudentDashboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]" style={{ backgroundColor: "#fafbfb" }}>
-        <div className="text-lg text-gray-400">Loading...</div>
+        <div>
+          <LoadingSpinner />
+          <div className="text-lg text-gray-400 mt-6 text-center">Loading...</div>
+        </div>
       </div>
     );
   }
@@ -326,7 +359,7 @@ function StudentDashboard() {
     .sort((a, b) => (a.timeSlot.slotNumber ?? 0) - (b.timeSlot.slotNumber ?? 0));
 
   return (
-    <div className="container max-w-5xl mx-auto p-2 pb-10" style={{ backgroundColor: "#fafbfb", color: "#22292f" }}>
+    <div className="container max-w-6xl mx-auto p-2 pb-10" style={{  color: "#22292f" }}>
       {/* Profile Card and Stats */}
       <div className="flex flex-col md:flex-row gap-6 my-8">
         <div className="flex-1 rounded-lg shadow-lg bg-white border border-gray-200 h-fit">
@@ -422,10 +455,10 @@ function StudentDashboard() {
             )}
             <div className="ml-auto mt-4 md:mt-0">
               <Link
-                href={`/timetable/${upcoming.entry.section?.id || section?.id || 1}`}
+                href={`/myTimetable`}
                 className="rounded px-4 py-2 bg-blue-600 text-white text-sm hover:bg-blue-700 transition"
               >
-                View Timetable
+                View 
               </Link>
             </div>
           </div>

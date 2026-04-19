@@ -50,7 +50,7 @@ export default async function Header() {
       {/* <h3>Welcome {user.name}</h3> */}
       {userrole === 4 && <HodNav logout={logout} />}
       {userrole === 3 && <StudentNav />}
-      {userrole === 2 && <FacultyNav />}
+      {userrole === 2 && <FacultyNav logout={logout} />}
     </nav>
   );
 }

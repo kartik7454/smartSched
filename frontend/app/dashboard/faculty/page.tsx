@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { API_BASE } from "@/lib/apiBase";
 
 // Define types
 type TimetableEntry = {
@@ -104,7 +105,7 @@ export default function FacultyDashboard() {
       if (user_id) {
         try {
           const res = await fetch(
-            `http://localhost:3000/faculty/user/${user_id}`,
+            `${API_BASE}/faculty/user/${user_id}`,
             {
               credentials: "include",
               headers: { "Content-Type": "application/json" },
@@ -125,7 +126,7 @@ export default function FacultyDashboard() {
       // Example: `/api/faculty/${u?.userId}/timetable`
       let entries: TimetableEntry[] = [];
       try {
-        const res = await fetch(`http://localhost:3000/timetables/faculty/${faculty.id}`, {
+        const res = await fetch(`${API_BASE}/timetables/faculty/${faculty.id}`, {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
         });
    
@@ -214,7 +215,7 @@ export default function FacultyDashboard() {
 
   // --- RENDER UI ---
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="max-w-6xl mx-auto p-6">
       <div className="mb-8">
         <div className="flex items-center gap-4 pb-2">
           <div className="rounded-full bg-blue-200 w-16 h-16 flex justify-center items-center text-3xl text-blue-800 font-bold">
@@ -294,7 +295,7 @@ export default function FacultyDashboard() {
                 href={`/myTimetable/faculty`}
                 className="rounded px-4 py-2 bg-blue-600 text-white text-sm hover:bg-blue-700 transition"
               >
-                View Timetable
+                View 
               </Link>
             </div>
           </div>

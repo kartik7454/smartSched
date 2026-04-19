@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { API_BASE } from "@/lib/apiBase";
 
 
 // Simple section type for list
@@ -144,61 +145,30 @@ function sectionLabel(entry: TimetableEntry) {
   return `${s.course?.name ?? "Course"} · Sem ${s.semester} ${s.name}`;
 }
 
-// Function to remove many timetables by sectionId (kept for per-section delete)
+// Delete timetable rows for one section (callers update React state after success)
 async function removeManyBySectionId(
   sectionId: number,
-  API_BASE: string,
-  updateEntries: (cb: (prev: TimetableEntry[]) => TimetableEntry[]) => void,
+  apiBase: string,
   departmentId: number | null
 ) {
-  if (!sectionId || !API_BASE || !departmentId) return;
+  if (!sectionId || !apiBase || !departmentId) return;
 
   const token = localStorage.getItem("token");
   if (!token) return;
 
   try {
-    const res = await fetch(`${API_BASE}/timetables/section/${sectionId}`, {
+    const res = await fetch(`${apiBase}/timetables/section/${sectionId}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    if (res.ok) {
-      updateEntries((prev) => prev.filter((e) => e.sectionId !== sectionId));
-    } else {
+    if (!res.ok) {
       // eslint-disable-next-line no-console
       console.error("Failed to delete timetable entries for section", sectionId);
     }
   } catch (e) {
     // eslint-disable-next-line no-console
     console.error("Error deleting timetable entries for section", sectionId, e);
-  }
-}
-
-async function removeAllTimetablesForDepartment(
-  departmentId: number | null,
-  API_BASE: string,
-  updateEntries: (cb: (prev: TimetableEntry[]) => TimetableEntry[]) => void
-) {
-  if (!departmentId || !API_BASE) return;
-
-  const token = localStorage.getItem("token");
-  if (!token) return;
-
-  try {
-    const res = await fetch(`${API_BASE}/timetables/department/${departmentId}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    if (res.ok) {
-      updateEntries(() => []);
-    } else {
-      // eslint-disable-next-line no-console
-      console.error("Failed to delete all timetable entries for department", departmentId);
-    }
-  } catch (e) {
-    // eslint-disable-next-line no-console
-    console.error("Error deleting all timetable entries for department", departmentId, e);
   }
 }
 
@@ -263,8 +233,6 @@ export default function GenerateTimetablePage() {
   const [departmentId, setDepartmentId] = useState<number | null>(null);
   const [removingAll, setRemovingAll] = useState(false);
   const [removingSection, setRemovingSection] = useState<number | null>(null);
-
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
 
   // Fetch only section list for department
   async function fetchSectionsList() {
@@ -387,7 +355,11 @@ export default function GenerateTimetablePage() {
     setError(null);
 
     try {
-      await removeAllTimetablesForDepartment(departmentId, API_BASE, () => {});
+      for( let i =0 ; i<sections.length;i++ ){
+        console.log(sections[i].id)
+        await removeManyBySectionId(sections[i].id, API_BASE, departmentId);
+      }
+      
       // Remove from UI as well
       setSections([]);
       setSectionEntries({});
@@ -421,12 +393,7 @@ export default function GenerateTimetablePage() {
   async function handleRemoveSection(sectionId: number) {
     setRemovingSection(sectionId);
     try {
-      await removeManyBySectionId(
-        sectionId,
-        API_BASE,
-        (prev) => prev.filter((e) => e.sectionId !== sectionId),
-        departmentId
-      );
+      await removeManyBySectionId(sectionId, API_BASE, departmentId);
       // Remove from UI section list and timetable cache
       setSections((old) => old.filter((s) => s.id !== sectionId));
       setSectionEntries((old) => {
@@ -444,7 +411,7 @@ export default function GenerateTimetablePage() {
 
   if (loadingSections) {
     return (
-      <div className="min-h-screen bg-stone-50 dark:bg-stone-950 flex items-center justify-center">
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center">
         <div className="h-10 w-10 animate-spin rounded-full border-2 border-amber-500 border-t-transparent" />
       </div>
     );
@@ -452,15 +419,15 @@ export default function GenerateTimetablePage() {
 
   if (error && !departmentId) {
     return (
-      <div className="min-h-screen bg-stone-50 dark:bg-stone-950 p-6">
+      <div className="min-h-screen bg-stone-50 p-6">
         <div className="max-w-2xl mx-auto">
           <Link
             href="/"
-            className="text-amber-600 hover:text-amber-700 dark:text-amber-400 text-sm font-medium mb-4 inline-block"
+            className="text-amber-600 hover:text-amber-700 text-sm font-medium mb-4 inline-block"
           >
             ← Back
           </Link>
-          <div className="rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 text-red-800 dark:text-red-200 px-6 py-4">
+          <div className="rounded-xl bg-red-50 border border-red-200 text-red-800 px-6 py-4">
             {error}
           </div>
         </div>
@@ -469,12 +436,12 @@ export default function GenerateTimetablePage() {
   }
 
   return (
-    <div className="min-h-screen bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100">
-      <header className="sticky top-0 z-10 border-b border-stone-200 dark:border-stone-800 bg-white/95 dark:bg-stone-900/95 backdrop-blur">
+    <div className="min-h-screen bg-stone-50 text-stone-900">
+      <header className="sticky top-0 z-10 border-b border-stone-200 bg-white/95 backdrop-blur">
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 flex flex-wrap items-center justify-between gap-4">
           <Link
             href="/"
-            className="text-stone-500 hover:text-stone-900 dark:hover:text-stone-300 text-sm font-medium"
+            className="text-stone-500 hover:text-stone-900 text-sm font-medium"
           >
             ← Back
           </Link>
@@ -486,18 +453,18 @@ export default function GenerateTimetablePage() {
 
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
         {error && (
-          <div className="rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 text-red-800 dark:text-red-200 px-4 py-3 text-sm mb-6">
+          <div className="rounded-lg bg-red-50 border border-red-200 text-red-800 px-4 py-3 text-sm mb-6">
             {error}
           </div>
         )}
 
-        <div className="rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 shadow-sm p-6 mb-8">
+        <div className="rounded-xl border border-stone-200 bg-white shadow-sm p-6 mb-8">
           <div className="flex flex-wrap items-center gap-4">
             <div>
-              <p className="text-sm text-stone-500 dark:text-stone-400">
+              <p className="text-sm text-stone-500">
                 Your department
               </p>
-              <p className="text-lg font-semibold text-stone-800 dark:text-stone-200">
+              <p className="text-lg font-semibold text-stone-800">
                 {departmentName}
               </p>
             </div>
@@ -535,7 +502,7 @@ export default function GenerateTimetablePage() {
 
         <h2 className="text-lg font-semibold mb-4">Department Timetables</h2>
         {sections.length === 0 ? (
-          <div className="rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 p-12 text-center text-stone-500 dark:text-stone-400">
+          <div className="rounded-xl border border-stone-200 bg-white p-12 text-center text-stone-500">
             No timetables generated yet. Click &quot;Generate Timetable&quot; to create
             timetables for your department.
           </div>
@@ -548,10 +515,10 @@ export default function GenerateTimetablePage() {
               return (
                 <div
                   key={section.id}
-                  className="rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 shadow-sm overflow-hidden"
+                  className="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden"
                 >
                   <div
-                    className={`w-full flex items-center justify-between px-4 py-3 bg-stone-100 dark:bg-stone-800/80 border-b border-stone-200 dark:border-stone-700 font-semibold text-stone-800 dark:text-stone-200 hover:bg-amber-50 dark:hover:bg-stone-800 focus:outline-none transition cursor-pointer text-left`}
+                    className={`w-full flex items-center justify-between px-4 py-3 bg-stone-100 border-b border-stone-200 font-semibold text-stone-800 hover:bg-amber-50 focus:outline-none transition cursor-pointer text-left`}
                     role="button"
                     onClick={() => handleToggleSection(section.id)}
                     aria-expanded={isExpanded}
@@ -608,7 +575,7 @@ export default function GenerateTimetablePage() {
                           <span className="h-6 w-6 animate-spin rounded-full border-2 border-amber-500 border-t-transparent inline-block" />
                         </div>
                       ) : entries.length === 0 ? (
-                        <div className="text-center py-6 text-stone-500 dark:text-stone-400 text-sm">
+                        <div className="text-center py-6 text-stone-500 text-sm">
                           No timetable entries for this section.
                         </div>
                       ) : (
@@ -618,13 +585,13 @@ export default function GenerateTimetablePage() {
                             <table className="w-full border-collapse text-sm">
                               <thead>
                                 <tr>
-                                  <th className="w-24 border-b border-r border-stone-200 dark:border-stone-700 px-3 py-3 text-left font-semibold text-stone-700 dark:text-stone-300">
+                                  <th className="w-24 border-b border-r border-stone-200 px-3 py-3 text-left font-semibold text-stone-700">
                                     Day
                                   </th>
                                   {grid.slotDetails.map((slot: any) => (
                                     <th
                                       key={slot.id}
-                                      className="border-b border-r border-stone-200 dark:border-stone-700 px-3 py-3 text-center font-semibold text-stone-700 dark:text-stone-300 whitespace-nowrap"
+                                      className="border-b border-r border-stone-200 px-3 py-3 text-center font-semibold text-stone-700 whitespace-nowrap"
                                     >
                                       {formatTime(slot.startTime)} –{" "}
                                       {formatTime(slot.endTime)}
@@ -641,16 +608,16 @@ export default function GenerateTimetablePage() {
                                   );
                                   return (
                                     <tr key={d.id}>
-                                      <td className="border-b border-r border-stone-200 dark:border-stone-700 px-3 py-2 font-medium text-stone-600 dark:text-stone-400">
+                                      <td className="border-b border-r border-stone-200 px-3 py-2 font-medium text-stone-600">
                                         {d.name.slice(0, 3)}
                                       </td>
                                       {cells.map((cell: any, i: number) => (
                                         <td
                                           key={i}
-                                          className="border-b border-r border-stone-200 dark:border-stone-700 p-2 align-top"
+                                          className="border-b border-r border-stone-200 p-2 align-top"
                                         >
                                           {cell.entries.length === 0 ? (
-                                            <span className="text-stone-400 dark:text-stone-500 text-xs block text-center py-4">
+                                            <span className="text-stone-400 text-xs block text-center py-4">
                                               —
                                             </span>
                                           ) : (
@@ -658,9 +625,9 @@ export default function GenerateTimetablePage() {
                                               {cell.entries.map((e: any) => (
                                                 <div
                                                   key={e.id}
-                                                  className="rounded-lg border border-stone-300 dark:border-stone-600 bg-stone-100 dark:bg-stone-800/80 p-2"
+                                                  className="rounded-lg border border-stone-300 bg-stone-100 p-2"
                                                 >
-                                                  <div className="font-semibold text-stone-800 dark:text-stone-200">
+                                                  <div className="font-semibold text-stone-800">
                                                     {e.subject.name}
                                                     {e.subject.isLab && (
                                                       <span className="text-xs ml-1 font-normal">
@@ -668,7 +635,7 @@ export default function GenerateTimetablePage() {
                                                       </span>
                                                     )}
                                                   </div>
-                                                  <div className="text-xs text-stone-600 dark:text-stone-400">
+                                                  <div className="text-xs text-stone-600">
                                                     {e.faculty.user.name}
                                                   </div>
                                                   <div className="text-xs text-stone-500">

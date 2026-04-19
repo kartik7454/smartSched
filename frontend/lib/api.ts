@@ -1,4 +1,4 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+import { API_BASE } from "./apiBase";
 
 function authHeaders() {
   if (typeof window === "undefined") return undefined;
@@ -56,11 +56,13 @@ export async function getFaculty(): Promise<
   const res = await fetch(`${API_BASE}/faculty`);
   return jsonOrThrow(res, "Failed to fetch faculty");
 }
-
+///////
 export async function getTimetableByFaculty(
   facultyId: number
 ): Promise<import("@/types/timetable").TimetableEntry[]> {
-  const res = await fetch(`${API_BASE}/timetables/faculty/${facultyId}`);
+  const res = await fetch(`${API_BASE}/timetables/faculty/${facultyId}`,{
+    headers: authHeaders(),
+  });
   return jsonOrThrow(res, "Failed to fetch timetable");
 }
 

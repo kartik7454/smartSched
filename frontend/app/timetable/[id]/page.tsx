@@ -2,6 +2,51 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { API_BASE } from "@/lib/apiBase";
+
+// --- Circular Loading Spinner Component ---
+function Spinner({ size = 36, color = "#2563eb" }: { size?: number; color?: string }) {
+  return ( <div style={{
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      height: size,
+      width: size,
+    }}>
+      <svg
+        style={{
+          animation: "spin 1s linear infinite"
+        }}
+        width={size}
+        height={size}
+        viewBox="0 0 50 50"
+        fill="none"
+      >
+        <circle
+          cx="25"
+          cy="25"
+          r="20"
+          stroke="#E5E7EB"
+          strokeWidth="5"
+          fill="none"
+        />
+        <circle
+          cx="25"
+          cy="25"
+          r="20"
+          stroke={color}
+          strokeWidth="5"
+          fill="none"
+          strokeDasharray="90"
+          strokeDashoffset="60"
+          strokeLinecap="round"
+        />
+      </svg>
+      <style>{`@keyframes spin{100%{transform:rotate(360deg);}}`}</style>
+    </div>
+   
+  );
+}
 
 type Room = {
   id: number;
@@ -60,7 +105,6 @@ const DAY_ORDER = [
   "FRIDAY",
 ];
 
-// --- BEGIN SLOT TEMPLATE (for showing all slots columns) ---
 const SLOT_TEMPLATE = [
   { slotNumber: 1, startTime: "09:00", endTime: "10:00" },
   { slotNumber: 2, startTime: "10:00", endTime: "11:00" },
@@ -70,7 +114,6 @@ const SLOT_TEMPLATE = [
   { slotNumber: 6, startTime: "14:00", endTime: "15:00" },
   { slotNumber: 7, startTime: "15:00", endTime: "16:00" },
 ];
-// --- END SLOT TEMPLATE ---
 
 function formatTime(s: string) {
   if (!s) return "";
@@ -80,14 +123,7 @@ function formatTime(s: string) {
   return `${h12}:${m.toString().padStart(2, "0")} ${am ? "AM" : "PM"}`;
 }
 
-/**
- * Always show all slot columns, regardless of whether any entry exists in that slot.
- * 'slotDetails' columns come from SLOT_TEMPLATE. Data fill uses mapping to each day/slotNumber pair, even if empty.
- */
 function buildGrid(entries: TimetableEntry[]) {
-  // Build unique map of day name to an actual day id (fall back if not present in dataset)
-  // Our goal: always show all days in DAY_ORDER, preserving a stable dayId if available,
-  // or making up a negative id if not present in data.
   const uniqueDaysMap = new Map<string, number>();
   entries.forEach((e) => {
     if (!uniqueDaysMap.has(e.day.name)) {
@@ -95,28 +131,24 @@ function buildGrid(entries: TimetableEntry[]) {
     }
   });
 
-  // Build all days in order, using real id if present, else fake
   const allDays = DAY_ORDER.map((dayName, idx) =>
     uniqueDaysMap.has(dayName)
       ? { id: uniqueDaysMap.get(dayName)!, name: dayName }
       : { id: -1000 - idx, name: dayName }
   );
 
-  // Use the slot template strictly as the columns (show all, always)
   const slotDetails = SLOT_TEMPLATE.map((slot) => ({
-    id: slot.slotNumber, // Use slotNumber as the slotId for "display"
+    id: slot.slotNumber,
     startTime: slot.startTime,
     endTime: slot.endTime,
     slotNumber: slot.slotNumber,
   }));
 
-  // slotIds are just the slotNumbers, strictly in order
   const slotIds = SLOT_TEMPLATE.map((slot) => slot.slotNumber);
 
-  // Map of (dayId string:slotNumber) to entries[] for quick lookup
   const cellMap = new Map<string, TimetableEntry[]>();
   for (const e of entries) {
-    const key = `${e.dayId}:${e.timeSlot.timeSlotNumber ?? e.timeSlot.slotNumber ?? e.timeSlotId}`;
+    const key = `${e.dayId}:${e.timeSlot.slotNumber ?? e.timeSlotId}`;
     if (!cellMap.has(key)) cellMap.set(key, []);
     cellMap.get(key)!.push(e);
   }
@@ -129,9 +161,7 @@ function buildGrid(entries: TimetableEntry[]) {
   };
 }
 
-// Get all cells for a day - one per time slot in SLOT_TEMPLATE
 function getCellsForDay(dayId: number, slotIds: number[], cellMap: Map<string, TimetableEntry[]>) {
-  // For each slot, pull any entry(ies) for this day and slotNumber
   return slotIds.map((slotNumber) => {
     const key = `${dayId}:${slotNumber}`;
     return { colSpan: 1, entries: cellMap.get(key) ?? [], dayId, slotNumber };
@@ -184,26 +214,18 @@ export default function SectionTimetablePage() {
   );
   const [submitting, setSubmitting] = useState<boolean>(false);
 
-  // For fetched course subjects available for add in modal
   const [subjectOptions, setSubjectOptions] = useState<CourseSubject[]>([]);
-
-  // For fetched faculty options for given subjects
   const [facultyOptions, setFacultyOptions] = useState<Faculty[]>([]);
   const [facultyLoading, setFacultyLoading] = useState(false);
-
-  // Fetched rooms list for the department
   const [rooms, setRooms] = useState<Room[]>([]);
   const [roomsLoading, setRoomsLoading] = useState(false);
 
-  // Only for add (subjectId, facultyId, roomId)
   const [formState, setFormState] = useState<{
     subjectId: number | "";
     facultyId: number | "";
     roomId: number | "";
   }>({ subjectId: "", facultyId: "", roomId: "" });
 
-  // Store section metadata for easy lookup (for fetching subject list)
-  // Also fetch departmentId!
   const [sectionInfo, setSectionInfo] = useState<{ courseId: number; semester: number; departmentId?: number } | null>(null);
 
   const loadTimetable = useCallback(async () => {
@@ -227,7 +249,7 @@ export default function SectionTimetablePage() {
 
     try {
       const res = await fetch(
-        `http://localhost:3000/timetables/section/${id}`,
+        `${API_BASE}/timetables/section/${id}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -288,7 +310,6 @@ export default function SectionTimetablePage() {
     void loadTimetable();
   }, [loadTimetable]);
 
-  // After we receive the sectionInfo, fetch subject options for this course/semester
   useEffect(() => {
     async function fetchCourseSubjects() {
       if (!sectionInfo) {
@@ -299,7 +320,7 @@ export default function SectionTimetablePage() {
         typeof window !== "undefined" ? localStorage.getItem("token") : null;
       try {
         const res = await fetch(
-          `http://localhost:3000/course-subject/by-course-and-semester?courseId=${sectionInfo?.courseId}&semester=${sectionInfo?.semester}`,
+          `${API_BASE}/course-subject/by-course-and-semester?courseId=${sectionInfo?.courseId}&semester=${sectionInfo?.semester}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -316,7 +337,6 @@ export default function SectionTimetablePage() {
     fetchCourseSubjects();
   }, [sectionInfo]);
 
-  // After we have departmentId in sectionInfo, fetch rooms for department
   useEffect(() => {
     async function fetchRooms() {
       if (!sectionInfo?.departmentId) {
@@ -328,7 +348,7 @@ export default function SectionTimetablePage() {
         typeof window !== "undefined" ? localStorage.getItem("token") : null;
       try {
         const res = await fetch(
-          `http://localhost:3000/rooms/department/${sectionInfo.departmentId}`,
+          `${API_BASE}/rooms/department/${sectionInfo.departmentId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -349,7 +369,6 @@ export default function SectionTimetablePage() {
     }
   }, [sectionInfo?.departmentId]);
 
-  // Faculties who teach the subject selected in the add-slot modal
   useEffect(() => {
     if (!addModal?.visible || !formState.subjectId) {
       setFacultyOptions([]);
@@ -362,7 +381,7 @@ export default function SectionTimetablePage() {
         typeof window !== "undefined" ? localStorage.getItem("token") : null;
       try {
         const res = await fetch(
-          "http://localhost:3000/faculty-subject/unique-faculties-by-subjects",
+          `${API_BASE}/faculty-subject/unique-faculties-by-subjects`,
           {
             method: "POST",
             headers: {
@@ -441,7 +460,7 @@ export default function SectionTimetablePage() {
         facultyId: faculty.id,
         roomId: room.id,
         dayId: addModal.dayId,
-        timeSlotId: addModal.slotId, // Use slotNumber (see buildGrid)
+        timeSlotId: addModal.slotId,
         subject: subj,
         faculty,
         room,
@@ -449,7 +468,6 @@ export default function SectionTimetablePage() {
           entries.find((e) => e.dayId === addModal.dayId)?.day ||
           { id: addModal.dayId, name: "" },
         timeSlot: (() => {
-          // try to get from template; id = slotNumber
           const t = SLOT_TEMPLATE.find(t => t.slotNumber === addModal.slotId);
           return {
             id: addModal.slotId,
@@ -493,7 +511,7 @@ export default function SectionTimetablePage() {
       typeof window !== "undefined" ? localStorage.getItem("token") : null;
     try {
       const res = await fetch(
-        `http://localhost:3000/timetables/section/${id}`,
+        `${API_BASE}/timetables/section/${id}`,
         {
           method: "PUT",
           headers: {
@@ -524,7 +542,12 @@ export default function SectionTimetablePage() {
   }
 
   if (loading)
-    return <div className="p-6">Loading...</div>;
+    return (
+      <div className="p-6 flex flex-col items-center justify-center min-h-[200px]">
+        <Spinner size={48} color="#2563eb" />
+        <div className="mt-3 text-gray-600 text-sm">Loading...</div>
+      </div>
+    );
   if (error)
     return <div className="p-6 text-red-500">{error}</div>;
 
@@ -532,7 +555,7 @@ export default function SectionTimetablePage() {
   const grid = buildGrid(showingEntries);
 
   return (
-    <div className="p-6">
+    <div className="p-6 bg-white text-black min-h-screen">
       <h1 className="text-xl font-semibold mb-4">
         Timetable for Section {sectionLabel}
       </h1>
@@ -544,7 +567,12 @@ export default function SectionTimetablePage() {
             onClick={handleSubmitEdits}
             disabled={submitting}
           >
-            {submitting ? "Saving..." : "Submit Edits"}
+            {submitting ? (
+              <span className="flex items-center gap-2">
+                <Spinner size={18} color="#fff" />
+                Saving...
+              </span>
+            ) : "Submit Edits"}
           </button>
           <button
             className="bg-gray-400 text-white px-4 py-1 rounded hover:bg-gray-500"
@@ -563,17 +591,17 @@ export default function SectionTimetablePage() {
         </button>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 shadow-sm">
-        <table className="w-full border-collapse text-sm">
+      <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
+        <table className="w-full border-collapse text-sm bg-white">
           <thead>
             <tr>
-              <th className="w-24 border-b border-r px-3 py-3 text-left">
+              <th className="w-24 border-b border-r border-gray-200 px-3 py-3 text-left bg-gray-100">
                 Day
               </th>
               {grid.slotDetails.map((slot: any) => (
                 <th
                   key={slot.id}
-                  className="border-b border-r px-3 py-3 text-center"
+                  className="border-b border-r border-gray-200 px-3 py-3 text-center bg-gray-100"
                 >
                   {formatTime(slot.startTime)} – {formatTime(slot.endTime)}
                 </th>
@@ -588,8 +616,8 @@ export default function SectionTimetablePage() {
                 grid.cellMap
               );
               return (
-                <tr key={d.id}>
-                  <td className="border-b border-r px-3 py-2 font-medium">
+                <tr key={d.id} className="bg-white">
+                  <td className="border-b border-r border-gray-200 px-3 py-2 font-medium bg-gray-50">
                     {d.name.slice(0, 3)}
                   </td>
                   {cells.map((cell: any, i: number) => {
@@ -597,7 +625,7 @@ export default function SectionTimetablePage() {
                     return (
                       <td
                         key={i}
-                        className="border-b border-r p-2 align-top"
+                        className="border-b border-r border-gray-200 p-2 align-top bg-white"
                         style={{ minWidth: 120 }}
                       >
                         {cell.entries.length === 0 ? (
@@ -618,9 +646,9 @@ export default function SectionTimetablePage() {
                             {cell.entries.map((e: TimetableEntry) => (
                               <div
                                 key={e.id}
-                                className="relative rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 p-2 pr-8"
+                                className="relative rounded-lg border border-gray-300 bg-gray-100 p-2 pr-8"
                               >
-                                <div className="font-semibold">
+                                <div className="font-semibold text-black">
                                   {e.subject.name}
                                   {e.subject.isLab && (
                                     <span className="text-xs ml-1">
@@ -628,7 +656,7 @@ export default function SectionTimetablePage() {
                                     </span>
                                   )}
                                 </div>
-                                <div className="text-xs">
+                                <div className="text-xs text-black">
                                   {e.faculty.user.name}
                                 </div>
                                 <div className="text-xs text-gray-500">
@@ -636,7 +664,6 @@ export default function SectionTimetablePage() {
                                 </div>
                                 {isEdit && (
                                   <div className="absolute top-1 right-1 flex flex-row gap-1">
-                                    {/* No edit button! Only delete */}
                                     <button
                                       className="text-red-600 text-xs bg-white px-1 rounded hover:underline"
                                       title="Delete"
@@ -664,10 +691,9 @@ export default function SectionTimetablePage() {
           <div className="p-6">No timetable for this section.</div>
         )
       }
-      {/* Add Modal */}
       {addModal?.visible && (
         <div
-          className="fixed inset-0 z-20 flex items-center justify-center bg-black bg-opacity-40"
+          className="fixed inset-0 z-20 flex items-center justify-center bg-white bg-opacity-10"
           onClick={() => setAddModal(null)}
         >
           <div
@@ -685,12 +711,12 @@ export default function SectionTimetablePage() {
               className="space-y-2"
             >
               <div>
-                <label className="block text-xs mb-1  text-black">Subject</label>
+                <label className="block text-xs mb-1 text-black">Subject</label>
                 <select
                   name="subjectId"
                   value={formState.subjectId}
                   onChange={handleFormChange}
-                  className="w-full border rounded p-1 text-sm  text-black"
+                  className="w-full border border-gray-300 rounded p-1 text-sm text-black bg-white"
                   required
                   disabled={!subjectOptions.length}
                 >
@@ -698,7 +724,7 @@ export default function SectionTimetablePage() {
                   {subjectOptions.map((s) => (
                     <option value={s.subject.id} key={s.subject.id}>
                       {s.subject.name}
-                      {s.subject.isLab ? ' (Lab)' : ""}
+                      {s.subject.isLab ? " (Lab)" : ""}
                     </option>
                   ))}
                 </select>
@@ -706,27 +732,32 @@ export default function SectionTimetablePage() {
                   <div className="text-xs text-gray-500 mt-1">
                     {sectionInfo
                       ? "No subjects available for this course & semester."
-                      : "Loading subjects..."}
+                      : <span className="inline-flex items-center gap-1"><Spinner size={14} color="#6b7280" /> Loading subjects...</span>}
                   </div>
                 )}
               </div>
               <div>
-                <label className="block text-xs mb-1  text-black">Faculty</label>
+                <label className="block text-xs mb-1 text-black">Faculty</label>
                 <select
                   name="facultyId"
                   value={formState.facultyId}
                   onChange={handleFormChange}
-                  className="w-full border rounded p-1 text-sm  text-black"
+                  className="w-full border border-gray-300 rounded p-1 text-sm text-black bg-white"
                   required
                   disabled={!formState.subjectId || facultyLoading}
                 >
-                  <option value="">{facultyLoading ? "Loading…" : "Select…"}</option>
+                  <option value="">{facultyLoading ? <Spinner size={12} color="#6b7280" /> : "Select…"}</option>
                   {facultyOptions.map((f) => (
                     <option value={f.id} key={f.id}>
                       {f.user.name}
                     </option>
                   ))}
                 </select>
+                {facultyLoading && (
+                  <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                    <Spinner size={14} color="#6b7280" /> Loading faculties...
+                  </div>
+                )}
                 {formState.subjectId && !facultyLoading && facultyOptions.length === 0 && (
                   <div className="text-xs text-red-500 mt-1">
                     No faculties available for this subject.
@@ -734,22 +765,27 @@ export default function SectionTimetablePage() {
                 )}
               </div>
               <div>
-                <label className="block text-xs mb-1  text-black">Room</label>
+                <label className="block text-xs mb-1 text-black">Room</label>
                 <select
                   name="roomId"
                   value={formState.roomId}
                   onChange={handleFormChange}
-                  className="w-full border rounded p-1 text-sm  text-black"
+                  className="w-full border border-gray-300 rounded p-1 text-sm text-black bg-white"
                   required
                   disabled={roomsLoading}
                 >
-                  <option value="">{roomsLoading ? "Loading…" : "Select…"}</option>
+                  <option value="">{roomsLoading ? <Spinner size={12} color="#6b7280" /> : "Select…"}</option>
                   {rooms.map((r) => (
                     <option value={r.id} key={r.id}>
                       {r.name}
                     </option>
                   ))}
                 </select>
+                {roomsLoading && (
+                  <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                    <Spinner size={14} color="#6b7280" /> Loading rooms...
+                  </div>
+                )}
                 {!roomsLoading && rooms.length === 0 && (
                   <div className="text-xs text-red-500 mt-1">
                     No rooms available for this department.

@@ -1,18 +1,29 @@
 "use client";
 
 import { useState } from "react";
+import { API_BASE } from "@/lib/apiBase";
 
 export default function LoginPage() {
   const [role, setRole] = useState<"student" | "teacher">("student");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-   
+    setError(null);
+
+    // Placeholder: replace with real login logic (API call)
+    if (!email || !password) {
+      setError("Please fill in all fields.");
+      return;
+    }
+
+    setLoading(true);
+
     try {
-      const response = await fetch("http://localhost:3000/auth/login", {
+      const response = await fetch(`${API_BASE}/auth/login`, {
         method: "POST",
         credentials: "include",
         headers: {
@@ -23,30 +34,22 @@ export default function LoginPage() {
           password,
         }),
       });
-      
+
       const data = await response.json();
       if (!response.ok) {
         const errorData = data;
         setError(errorData.message || "Login failed.");
+        setLoading(false);
         return;
       } else {
         localStorage.setItem("token", data.access_token);
         window.location.href = "/"; // redirect to home
       }
-
-      // You could also handle storing tokens, redirect, etc. here
     } catch {
       setError("Login failed. Please try again later.");
+      setLoading(false);
       return;
     }
-
-    // Placeholder: replace with real login logic (API call)
-    if (!email || !password) {
-      setError("Please fill in all fields.");
-      return;
-    }
-    // Simulate login
-    
   };
 
   return (
@@ -56,31 +59,12 @@ export default function LoginPage() {
         onSubmit={handleSubmit}
       >
         <h1 className="text-2xl font-bold mb-6 text-center text-black">
-          {role === "student" ? "Student" : "Teacher"} Login
+          Login
         </h1>
-        <div className="flex justify-center mb-6 gap-4">
-          <button
-            type="button"
-            onClick={() => setRole("student")}
-            className={`px-4 py-2 rounded ${
-              role === "student" ? "bg-blue-600 text-white" : "bg-gray-200"
-            }`}
-          >
-            Student
-          </button>
-          <button
-            type="button"
-            onClick={() => setRole("teacher")}
-            className={`px-4 py-2 rounded ${
-              role === "teacher" ? "bg-blue-600 text-white" : "bg-gray-200"
-            }`}
-          >
-            Teacher
-          </button>
-        </div>
+        
         <div className="mb-4">
           <label className="block mb-1 font-medium text-black" htmlFor="email">
-            email
+            Email
           </label>
           <input
             type="text"
@@ -88,8 +72,9 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Enter your email"
-            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-500"
+            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-500 text-black"
             autoComplete="username"
+            disabled={loading}
           />
         </div>
         <div className="mb-6">
@@ -102,8 +87,9 @@ export default function LoginPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Enter your password"
-            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring  focus:border-blue-500"
+            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring  focus:border-blue-500 text-black"
             autoComplete="current-password"
+            disabled={loading}
           />
         </div>
         {error && (
@@ -111,9 +97,20 @@ export default function LoginPage() {
         )}
         <button
           type="submit"
-          className="w-full bg-blue-600 text-white py-2 rounded font-semibold hover:bg-blue-700 transition-colors"
+          className={`w-full bg-blue-600 text-white py-2 rounded font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center ${loading ? "opacity-60 cursor-not-allowed" : ""}`}
+          disabled={loading}
         >
-          Login
+          {loading ? (
+            <>
+              <svg className="animate-spin mr-2 h-5 w-5 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+              </svg>
+              Logging in...
+            </>
+          ) : (
+            "Login"
+          )}
         </button>
       </form>
     </div>
