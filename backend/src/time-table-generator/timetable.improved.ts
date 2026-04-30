@@ -95,9 +95,13 @@ interface ScheduleState {
   roomUsageCount: Record<ID, number>;
 }
 
+// === MODIFIED: GenerateTimetableResult includes unscheduledTasks
 export interface GenerateTimetableResult {
   timetable: TimetableEntry[];
-
+  unscheduledTasks: Array<{
+    task: Task;
+    reasons: string[];
+  }>;
   success: boolean;
 }
 
@@ -724,9 +728,10 @@ export function generateTimetableImproved({
 
   const metrics = calculateMetrics();
 
+  // Return the timetable, unscheduled tasks, and success flag
   return {
     timetable: state.timetable,
-
+    unscheduledTasks, // ADDED: include unscheduled tasks as data
     success:
       unscheduledTasks.length === 0 &&
       metrics.constraintViolations.length === 0,

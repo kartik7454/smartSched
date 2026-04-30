@@ -7,8 +7,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { API_BASE } from "@/lib/apiBase";
 
-
-// Simple section type for list
 type SectionInfo = {
   id: number;
   name: string;
@@ -216,17 +214,14 @@ async function fetchTimetableBySectionId(sectionId: number, API_BASE: string) {
 export default function GenerateTimetablePage() {
   const router = useRouter();
 
-  // Now we only store sections info, not timetable entries for all
   const [sections, setSections] = useState<SectionInfo[]>([]);
   const [sectionEntries, setSectionEntries] = useState<{
     [sectionId: number]: TimetableEntry[] | undefined;
   }>({});
   const [expandedSection, setExpandedSection] = useState<number | null>(null);
-  const [loadingSections, setLoadingSections] = useState(true); // loading flag for sections list
+  const [loadingSections, setLoadingSections] = useState(true);
 
-  // Loading state for section timetable (per section)
   const [sectionLoading, setSectionLoading] = useState<{ [sectionId: number]: boolean }>({});
-  
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [departmentName, setDepartmentName] = useState<string>("");
@@ -234,14 +229,15 @@ export default function GenerateTimetablePage() {
   const [removingAll, setRemovingAll] = useState(false);
   const [removingSection, setRemovingSection] = useState<number | null>(null);
 
-  // Fetch only section list for department
+  // Stores unscheduled tasks: { [sectionId]: number }
+  const [unscheduledTasks, setUnscheduledTasks] = useState<Record<number, number>>({});
+
   async function fetchSectionsList() {
     if (!departmentId) return;
     setLoadingSections(true);
     try {
       const sectionArr = await fetchSectionsListByDepartmentId(departmentId, API_BASE);
       setSections(sectionArr ?? []);
-      // Optional: clean stale entries
       setSectionEntries((prev) => {
         const next: typeof prev = {};
         sectionArr.forEach((s) => {
@@ -263,6 +259,7 @@ export default function GenerateTimetablePage() {
       setSections([]);
       setSectionEntries({});
       setExpandedSection(null);
+      setUnscheduledTasks({});
 
       const user = await getUserFromToken();
 
@@ -273,7 +270,6 @@ export default function GenerateTimetablePage() {
       }
 
       const token = localStorage.getItem("token");
-
       if (!token) {
         router.push("/login");
         return;
@@ -334,11 +330,31 @@ export default function GenerateTimetablePage() {
 
       const result = await res.json();
 
+      // BEGIN: Unscheduled tasks block
+      if (
+        result?.data &&
+        Array.isArray(result.data.unscheduledTasks) &&
+        result.data.unscheduledTasks.length > 0
+      ) {
+        // Map of sectionId -> count
+        const map: Record<number, number> = {};
+        for (const taskWrapper of result.data.unscheduledTasks) {
+          // We expect sectionId field inside each unscheduledTask's 'task'
+          const sectionId = taskWrapper?.task?.sectionId;
+          if (typeof sectionId === "number") {
+            map[sectionId] = (map[sectionId] || 0) + 1;
+          }
+        }
+        setUnscheduledTasks(map);
+      } else {
+        setUnscheduledTasks({});
+      }
+      // END: Unscheduled tasks block
+
       if (!res.ok) {
         throw new Error(result.message || result.error || "Failed to generate timetable");
       }
 
-      // Refetch sections list after generating!
       await fetchSectionsList();
       setSectionEntries({});
       setExpandedSection(null);
@@ -355,15 +371,13 @@ export default function GenerateTimetablePage() {
     setError(null);
 
     try {
-      for( let i =0 ; i<sections.length;i++ ){
-        console.log(sections[i].id)
+      for (let i = 0; i < sections.length; i++) {
         await removeManyBySectionId(sections[i].id, API_BASE, departmentId);
       }
-      
-      // Remove from UI as well
       setSections([]);
       setSectionEntries({});
       setExpandedSection(null);
+      setUnscheduledTasks({});
     } catch (err: any) {
       setError(err.message || "Error deleting all timetables.");
     } finally {
@@ -378,7 +392,6 @@ export default function GenerateTimetablePage() {
       return;
     }
     setExpandedSection(sectionId);
-    // Only fetch timetable entries for this section if not loaded already
     if (!sectionEntries[sectionId]) {
       setSectionLoading((prev) => ({ ...prev, [sectionId]: true }));
       const fetched = await fetchTimetableBySectionId(sectionId, API_BASE);
@@ -394,7 +407,6 @@ export default function GenerateTimetablePage() {
     setRemovingSection(sectionId);
     try {
       await removeManyBySectionId(sectionId, API_BASE, departmentId);
-      // Remove from UI section list and timetable cache
       setSections((old) => old.filter((s) => s.id !== sectionId));
       setSectionEntries((old) => {
         const next = { ...old };
@@ -402,6 +414,12 @@ export default function GenerateTimetablePage() {
         return next;
       });
       if (expandedSection === sectionId) setExpandedSection(null);
+      // Remove from unscheduledTasks also
+      setUnscheduledTasks((old) => {
+        const next = { ...old };
+        delete next[sectionId];
+        return next;
+      });
     } catch (e) {
       // nothing, error shown elsewhere
     } finally {
@@ -507,160 +525,192 @@ export default function GenerateTimetablePage() {
             timetables for your department.
           </div>
         ) : (
-          <div className="space-y-4">
-            {sections.map((section) => {
-              const isExpanded = expandedSection === section.id;
-              const entries = sectionEntries[section.id];
-              const isLoadingThisSection = !!sectionLoading[section.id];
-              return (
-                <div
-                  key={section.id}
-                  className="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden"
-                >
-                  <div
-                    className={`w-full flex items-center justify-between px-4 py-3 bg-stone-100 border-b border-stone-200 font-semibold text-stone-800 hover:bg-amber-50 focus:outline-none transition cursor-pointer text-left`}
-                    role="button"
-                    onClick={() => handleToggleSection(section.id)}
-                    aria-expanded={isExpanded}
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") handleToggleSection(section.id);
-                    }}
-                  >
-                    <span className="flex items-center gap-2">
-                      <span
-                        className={`inline-block transition-transform duration-200 ${
-                          isExpanded ? "rotate-90" : ""
-                        }`}
-                        style={{
-                          display: "inline-block",
-                          transformOrigin: "center center",
-                        }}
-                      >
-                        ▶
-                      </span>
-                      {sectionLabelFromSectionInfo(section)}
-                    </span>
-                    <div className="flex items-center">
-                      <Link
-                        href={`/timetable/${section.id}`}
-                        onClick={e => e.stopPropagation()}
-                        className="ml-2 px-3 py-1 rounded bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium transition-colors"
-                        title="Edit timetable for this section"
-                      >
-                        Edit
-                      </Link>
-                      <button
-                        type="button"
-                        disabled={removingSection === section.id}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemoveSection(section.id);
-                        }}
-                        className="ml-2 px-3 py-1 rounded bg-red-500 hover:bg-red-600 text-white text-xs font-medium disabled:opacity-60"
-                        title="Remove all timetable entries for this section"
-                      >
-                        {removingSection === section.id ? "Removing..." : "Remove"}
-                      </button>
-                    </div>
+          <>
+            {Object.keys(unscheduledTasks).length > 0 && (
+              <div className="mb-6">
+                <div className="rounded-lg bg-red-50 border border-red-200 text-red-800 px-4 py-3 text-sm">
+                  <strong>Failed to assign all classes in timetable:</strong>
+                  <div>
+                    {Object.entries(unscheduledTasks).map(([sectionId, count]) => (
+                      <div key={sectionId} className="mt-1">
+                        <span className="font-mono font-bold text-red-700">
+                          Section ID {sectionId}
+                        </span>
+                        {": "}
+                        <span>
+                          {count} unscheduled {count === 1 ? "task" : "tasks"}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                  {isExpanded && (
-                    <div className="overflow-x-auto animate-fadeIn">
-                      {isLoadingThisSection ? (
-                        <div className="py-12 text-center">
-                          <span className="h-6 w-6 animate-spin rounded-full border-2 border-amber-500 border-t-transparent inline-block" />
-                        </div>
-                      ) : !entries ? (
-                        <div className="py-12 text-center">
-                          <span className="h-6 w-6 animate-spin rounded-full border-2 border-amber-500 border-t-transparent inline-block" />
-                        </div>
-                      ) : entries.length === 0 ? (
-                        <div className="text-center py-6 text-stone-500 text-sm">
-                          No timetable entries for this section.
-                        </div>
-                      ) : (
-                        (() => {
-                          const grid = buildGrid(entries);
-                          return (
-                            <table className="w-full border-collapse text-sm">
-                              <thead>
-                                <tr>
-                                  <th className="w-24 border-b border-r border-stone-200 px-3 py-3 text-left font-semibold text-stone-700">
-                                    Day
-                                  </th>
-                                  {grid.slotDetails.map((slot: any) => (
-                                    <th
-                                      key={slot.id}
-                                      className="border-b border-r border-stone-200 px-3 py-3 text-center font-semibold text-stone-700 whitespace-nowrap"
-                                    >
-                                      {formatTime(slot.startTime)} –{" "}
-                                      {formatTime(slot.endTime)}
-                                    </th>
-                                  ))}
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {grid.dayNames.map((d: any) => {
-                                  const cells = getCellsForDay(
-                                    d.id,
-                                    grid.slotIds,
-                                    grid.byDay
-                                  );
-                                  return (
-                                    <tr key={d.id}>
-                                      <td className="border-b border-r border-stone-200 px-3 py-2 font-medium text-stone-600">
-                                        {d.name.slice(0, 3)}
-                                      </td>
-                                      {cells.map((cell: any, i: number) => (
-                                        <td
-                                          key={i}
-                                          className="border-b border-r border-stone-200 p-2 align-top"
-                                        >
-                                          {cell.entries.length === 0 ? (
-                                            <span className="text-stone-400 text-xs block text-center py-4">
-                                              —
-                                            </span>
-                                          ) : (
-                                            <div className="flex flex-col gap-1">
-                                              {cell.entries.map((e: any) => (
-                                                <div
-                                                  key={e.id}
-                                                  className="rounded-lg border border-stone-300 bg-stone-100 p-2"
-                                                >
-                                                  <div className="font-semibold text-stone-800">
-                                                    {e.subject.name}
-                                                    {e.subject.isLab && (
-                                                      <span className="text-xs ml-1 font-normal">
-                                                        (Lab)
-                                                      </span>
-                                                    )}
-                                                  </div>
-                                                  <div className="text-xs text-stone-600">
-                                                    {e.faculty.user.name}
-                                                  </div>
-                                                  <div className="text-xs text-stone-500">
-                                                    {e.room.name}
-                                                  </div>
-                                                </div>
-                                              ))}
-                                            </div>
-                                          )}
-                                        </td>
-                                      ))}
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
-                          );
-                        })()
-                      )}
-                    </div>
-                  )}
+                  <div className="mt-2 text-xs text-red-600">
+                    Please review constraints, faculty/room/slot availability and try again.
+                  </div>
                 </div>
-              );
-            })}
-          </div>
+              </div>
+            )}
+            <div className="space-y-4">
+              {sections.map((section) => {
+                const isExpanded = expandedSection === section.id;
+                const entries = sectionEntries[section.id];
+                const isLoadingThisSection = !!sectionLoading[section.id];
+                return (
+                  <div
+                    key={section.id}
+                    className="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden"
+                  >
+                    <div
+                      className={`w-full flex items-center justify-between px-4 py-3 bg-stone-100 border-b border-stone-200 font-semibold text-stone-800 hover:bg-amber-50 focus:outline-none transition cursor-pointer text-left`}
+                      role="button"
+                      onClick={() => handleToggleSection(section.id)}
+                      aria-expanded={isExpanded}
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") handleToggleSection(section.id);
+                      }}
+                    >
+                      <span className="flex items-center gap-4">
+                        {/* Section Label + ID */}
+                        <span className="flex items-center gap-2">
+                          <span
+                            className={`inline-block transition-transform duration-200 ${
+                              isExpanded ? "rotate-90" : ""
+                            }`}
+                            style={{
+                              display: "inline-block",
+                              transformOrigin: "center center",
+                            }}
+                          >
+                            ▶
+                          </span>
+                          {sectionLabelFromSectionInfo(section)}
+                        </span>
+                        {/* Section ID shown on side */}
+                        <span className="ml-3 px-2 py-0.5 rounded bg-stone-200 text-xs text-stone-600 font-mono" title="Section ID">
+                          ID: {section.id}
+                        </span>
+                      </span>
+                      <div className="flex items-center">
+                        <Link
+                          href={`/timetable/${section.id}`}
+                          onClick={e => e.stopPropagation()}
+                          className="ml-2 px-3 py-1 rounded bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium transition-colors"
+                          title="Edit timetable for this section"
+                        >
+                          Edit
+                        </Link>
+                        <button
+                          type="button"
+                          disabled={removingSection === section.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveSection(section.id);
+                          }}
+                          className="ml-2 px-3 py-1 rounded bg-red-500 hover:bg-red-600 text-white text-xs font-medium disabled:opacity-60"
+                          title="Remove all timetable entries for this section"
+                        >
+                          {removingSection === section.id ? "Removing..." : "Remove"}
+                        </button>
+                      </div>
+                    </div>
+                    {isExpanded && (
+                      <div className="overflow-x-auto animate-fadeIn">
+                        {isLoadingThisSection ? (
+                          <div className="py-12 text-center">
+                            <span className="h-6 w-6 animate-spin rounded-full border-2 border-amber-500 border-t-transparent inline-block" />
+                          </div>
+                        ) : !entries ? (
+                          <div className="py-12 text-center">
+                            <span className="h-6 w-6 animate-spin rounded-full border-2 border-amber-500 border-t-transparent inline-block" />
+                          </div>
+                        ) : entries.length === 0 ? (
+                          <div className="text-center py-6 text-stone-500 text-sm">
+                            No timetable entries for this section.
+                          </div>
+                        ) : (
+                          (() => {
+                            const grid = buildGrid(entries);
+                            return (
+                              <table className="w-full border-collapse text-sm">
+                                <thead>
+                                  <tr>
+                                    <th className="w-24 border-b border-r border-stone-200 px-3 py-3 text-left font-semibold text-stone-700">
+                                      Day
+                                    </th>
+                                    {grid.slotDetails.map((slot: any) => (
+                                      <th
+                                        key={slot.id}
+                                        className="border-b border-r border-stone-200 px-3 py-3 text-center font-semibold text-stone-700 whitespace-nowrap"
+                                      >
+                                        {formatTime(slot.startTime)} –{" "}
+                                        {formatTime(slot.endTime)}
+                                      </th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {grid.dayNames.map((d: any) => {
+                                    const cells = getCellsForDay(
+                                      d.id,
+                                      grid.slotIds,
+                                      grid.byDay
+                                    );
+                                    return (
+                                      <tr key={d.id}>
+                                        <td className="border-b border-r border-stone-200 px-3 py-2 font-medium text-stone-600">
+                                          {d.name.slice(0, 3)}
+                                        </td>
+                                        {cells.map((cell: any, i: number) => (
+                                          <td
+                                            key={i}
+                                            className="border-b border-r border-stone-200 p-2 align-top"
+                                          >
+                                            {cell.entries.length === 0 ? (
+                                              <span className="text-stone-400 text-xs block text-center py-4">
+                                                —
+                                              </span>
+                                            ) : (
+                                              <div className="flex flex-col gap-1">
+                                                {cell.entries.map((e: any) => (
+                                                  <div
+                                                    key={e.id}
+                                                    className="rounded-lg border border-stone-300 bg-stone-100 p-2"
+                                                  >
+                                                    <div className="font-semibold text-stone-800">
+                                                      {e.subject.name}
+                                                      {e.subject.isLab && (
+                                                        <span className="text-xs ml-1 font-normal">
+                                                          (Lab)
+                                                        </span>
+                                                      )}
+                                                    </div>
+                                                    <div className="text-xs text-stone-600">
+                                                      {e.faculty.user.name}
+                                                    </div>
+                                                    <div className="text-xs text-stone-500">
+                                                      {e.room.name}
+                                                    </div>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            )}
+                                          </td>
+                                        ))}
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            );
+                          })()
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </main>
     </div>

@@ -170,6 +170,7 @@ export class TimeTableGeneratorService {
       data: {
         timetable: result.timetable,
         savedCount: timetableData.length,
+        unscheduledTasks: result.unscheduledTasks,
       },
     };
   }
