@@ -1,118 +1,62 @@
-# SmartSched
+SmartSched: Intelligent Academic Timetable Manager
+SmartSched is an automated scheduling platform designed to eliminate the headache of manual timetable creation in academic institutions. By balancing the availability of teachers, the capacity of classrooms, and the needs of students, it creates conflict-free schedules at the click of a button.
 
-SmartSched is a full-stack **academic timetable** system. Staff configure departments, courses, subjects, rooms, faculty assignments, and time slots; the app can **generate** timetables and expose **role-based dashboards** (including HOD, faculty, and student views).
+🌟 What it Does
+Creating a school or college timetable is like solving a massive puzzle. You have to ensure:
 
-## Stack
+No teacher is scheduled for two classes at once.
 
-| Layer    | Technology                                      |
-| -------- | ----------------------------------------------- |
-| Frontend | [Next.js](https://nextjs.org) (App Router), React, Tailwind CSS, MUI |
-| Backend  | [NestJS](https://nestjs.com), JWT + HTTP-only cookies, Passport |
-| Database | [PostgreSQL](https://www.postgresql.org) via [Prisma](https://www.prisma.io) |
+No classroom is double-booked.
 
-## Repository layout
+Students have a logical flow to their day.
 
-```
-SmartSched/
-├── frontend/   # Next.js UI (default dev port 3001)
-├── backend/    # NestJS API (port 3000)
-```
+SmartSched takes all your raw data—your list of teachers, subjects, rooms, and sections—and uses an intelligent generator to build the perfect schedule for everyone.
 
-## Prerequisites
+👥 User Roles
+The system provides a tailored experience for three different types of users:
 
-- **Node.js** (LTS recommended)
-- **PostgreSQL** running locally or remotely, with a database created for this project
+🎓 For Students
+Personalized View: Access a clear, easy-to-read daily and weekly schedule.
 
-## Environment variables
+Real-time Updates: Stay informed about where you need to be and which subject is being taught.
 
-### Backend (`backend/.env`)
+👩‍🏫 For Faculty
+Teaching Schedule: View a dedicated dashboard showing your specific teaching hours.
 
-Create `backend/.env` (not committed) with:
+Subject Management: Track the subjects assigned to you across different departments.
 
-| Variable        | Description |
-| --------------- | ------------------------------------ |
-| `DATABASE_URL`  | PostgreSQL connection string for Prisma |
-| `JWT_SECRET`    | Secret for signing JWTs (required at runtime) |
+🏛️ For HODs & Administrators
+The "Brain" Center: Manage the master list of departments, classrooms, and academic sessions.
 
-Example:
+Automated Generation: Use the built-in generator to create entire timetables instantly.
 
-```env
-DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/smartsched?schema=public"
-JWT_SECRET="your-long-random-secret"
-```
+Resource Management: Easily add or edit faculty members, students, and classroom details.
 
-### Frontend (`frontend/.env.local`)
+🚀 Key Features
+Smart Timetable Generator: An advanced algorithm that handles complex constraints to prevent scheduling conflicts.
 
-Optional. Defaults to `http://localhost:3000` if unset.
+Role-Based Dashboards: Unique interfaces for Students, Faculty, and Heads of Departments (HOD).
 
-```env
-NEXT_PUBLIC_API_URL=http://localhost:3000
-```
+Centralized Database: One place for all academic data—no more messy spreadsheets.
 
-## Database setup
+Academic Session Tracking: Organize schedules by semester or yearly terms.
 
-From the `backend` directory, after `DATABASE_URL` is set:
+🛠️ How it Works (The Simple Version)
+Input: Admins enter the "ingredients" (Teachers, Rooms, Subjects, and Sections).
 
-```bash
-cd backend
-npm install
-npx prisma migrate deploy
-```
+Generate: The system runs the SmartSched Generator, which tries thousands of combinations to find a conflict-free path.
 
-For local development when you need to create or update migrations:
+Publish: The timetable is instantly available on the dashboards of every student and teacher involved.
 
-```bash
-npx prisma migrate dev
-```
+💻 Technical Overview
+While the system is easy to use, it is built on a modern and robust "engine":
 
-Regenerate the Prisma client after schema changes if needed:
+Frontend: A fast, responsive interface built with Next.js and Tailwind CSS.
 
-```bash
-npx prisma generate
-```
+Backend: A powerful API powered by NestJS.
 
-## Run locally
+Database: Secure data management using Prisma and a relational database.
 
-**Terminal 1 — API**
+Deployment: Configured for easy hosting (via Render).
 
-```bash
-cd backend
-npm install
-npm run start:dev
-```
-
-API listens on **http://localhost:3000**. CORS is enabled for the frontend origin **http://localhost:3001**.
-
-**Terminal 2 — Web app**
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Open **http://localhost:3001**.
-
-## Authentication and roles
-
-The API exposes `/auth/register` and `/auth/login`. Login sets an HTTP-only `token` cookie used by the frontend. User roles in the data model include **admin**, **faculty**, **student**, and **hod**; the home route redirects logged-in users toward the appropriate dashboard (e.g. student, faculty, HOD).
-
-## Main features (high level)
-
-- **Configuration** — Departments, courses, subjects, rooms, faculty, sections, academic sessions, time slots (`/configData` and related API modules).
-- **Timetable generation** — Generator service under `backend/src/time-table-generator` with UI at `/generateTimetable`.
-- **Views** — Timetable listing and detail pages, faculty/student “my timetable” routes, and dashboards under `/dashboard/*`.
-
-## Scripts reference
-
-| Location | Command           | Purpose              |
-| --------- | ----------------- | -------------------- |
-| `backend` | `npm run start:dev` | API with file watch |
-| `backend` | `npm run build` | Compile NestJS       |
-| `backend` | `npm run start:prod`| Run compiled app     |
-| `frontend`| `npm run dev`       | Next.js dev (port 3001) |
-| `frontend`| `npm run build`     | Production build     |
-
-## License
-
-See individual `package.json` files in `frontend/` and `backend/` for dependency licenses. Project `license` fields may be `UNLICENSED` unless you add your own terms.
+SmartSched — Spending less time on spreadsheets and more time on education.
